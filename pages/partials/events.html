@@ -1,0 +1,17 @@
+<div class="card-grid">
+  {% for event in events %}
+    <article class="card event-card">
+      <p class="eyebrow">
+        <time datetime="{{ event.starts_at }}">{{ event.starts_at | date_fr }}</time>
+      </p>
+      <h3>{{ event.title }}</h3>
+      <p>{{ event.description }}</p>
+      <p class="card-meta">{{ event.location }} · {{ event.price_cents | price }}</p>
+      {% if event.association_name %}
+        <p class="card-meta">{{ event.association_name }}</p>
+      {% endif %}
+    </article>
+  {% else %}
+    <p class="empty-state">Aucun événement n’est encore programmé. Reviens bientôt !</p>
+  {% endfor %}
+</div>

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="hero" aria-labelledby="hero-title">
+    <img class="hero-image" src="{{ url_for('static', filename='images/hero.webp') }}" alt="" fetchpriority="high">
+    <div class="container hero-content">
+      <h1 id="hero-title">
+        <span>{{ site.site_name.split(' ', 1)[0] }}</span>
+        <em>{{ site.site_name.split(' ', 1)[1] if ' ' in site.site_name else '' }}</em>
+      </h1>
+      <p>Le bureau des élèves, au cœur de la vie étudiante à l’ORT Sup, à Montreuil.</p>
+    </div>
+    <a class="scroll-hint" href="#presentation">
+      <span class="scroll-arrow" aria-hidden="true">↓</span>
+      <span>Faites défiler</span>
+    </a>
+  </section>
+
+  <section class="section about" id="presentation" aria-labelledby="about-title">
+    <div class="container">
+      <h2 class="about-title" id="about-title">Au cœur de la<br>vie <span>étudiante</span></h2>
+      <div class="about-content">
+        <p class="about-description">
+          Le Bureau des Élèves rassemble les étudiants autour des grands rendez-vous de l’année,
+          fédère les associations et porte leur voix auprès de l’école. Il anime la vie du campus
+          avec des événements, des projets et un engagement fort pour toute la communauté étudiante.
+        </p>
+        <div>
+          <p class="eyebrow">Depuis {{ site.institution_since }}</p>
+          <p class="about-statement">Une institution étudiante portée par et pour les élèves.</p>
+        </div>
+      </div>
+      <dl class="about-stats">
+        {% for value, label in [
+          (site.poles_count, 'Pôles'),
+          (site.members_count, 'Membres'),
+          (site.years_count, 'Ans d’histoire')
+        ] %}
+          <div>
+            <dt>{{ label }}</dt>
+            <dd>{{ value }}</dd>
+          </div>
+        {% endfor %}
+      </dl>
+    </div>
+  </section>
+
+  <section class="section events-section" aria-labelledby="events-title">
+    <div class="container">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Agenda du BDE</p>
+          <h2 id="events-title">Les prochains événements</h2>
+        </div>
+        <a class="button button-outline" href="{{ url_for('public_page', page='evenements') }}">Tous les événements →</a>
+      </div>
+      {% include "partials/events.html" %}
+    </div>
+  </section>
+
+  <section class="section portal" aria-labelledby="portal-title">
+    <div class="container">
+      <p class="eyebrow">La vie associative</p>
+      <h2 id="portal-title">Un site fait par le BDE<br><em>pour les étudiants.</em></h2>
+      <div class="portal-grid">
+        {% for key, label, copy in [
+          ('billetterie', 'Boutique', 'Découvre les articles et les adhésions du BDE.'),
+          ('associations', 'Associations', 'Rencontre les associations et trouve ta place sur le campus.'),
+          ('calendrier', 'Calendrier', 'Retrouve les rendez-vous de la vie étudiante.'),
+          ('bde', 'Le BDE', 'Découvre le bureau des élèves et ses projets.')
+        ] %}
+          <a class="portal-card" href="{{ url_for('public_page', page=key) }}">
+            <span aria-hidden="true">↗</span>
+            <h3>{{ label }}</h3>
+            <p>{{ copy }}</p>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+{% endblock %}
+
+{% block dialogs %}
+  <dialog class="welcome" aria-labelledby="welcome-title" aria-describedby="welcome-copy" data-welcome>
+    <button class="welcome-close" type="button" aria-label="Fermer la fenêtre de bienvenue" data-dialog-close autofocus>×</button>
+    <div class="welcome-badge">
+      <img src="{{ url_for('static', filename='images/logoort-removebg-preview.png') }}" alt="" width="44" height="44">
+    </div>
+    <p class="eyebrow">Bienvenue au BDE</p>
+    <h2 id="welcome-title">Nouveau à l’ORT Sup&nbsp;?</h2>
+    <p id="welcome-copy">Découvre {{ site.site_name }}, ses associations et ses prochains événements.</p>
+    <div class="welcome-actions">
+      <a class="button button-light" href="{{ url_for('public_page', page='billetterie') }}">Cotiser au BDE ↗</a>
+      <a class="button button-outline-light" href="{{ url_for('public_page', page='evenements') }}">Voir les événements</a>
+    </div>
+  </dialog>
+{% endblock %}

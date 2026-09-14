@@ -1,0 +1,28 @@
+<header class="site-header" data-header>
+  <div class="container header-inner">
+    <a class="brand" href="{{ url_for('home') }}" aria-label="{{ site.site_name }} — Accueil">
+      <img src="{{ url_for('static', filename='images/logoort-removebg-preview.png') }}" alt="" width="56" height="56">
+      <span>{{ site.site_name }}</span>
+    </a>
+    <button class="menu-toggle" type="button" aria-controls="navigation" aria-expanded="false" data-menu-toggle hidden>
+      <span data-menu-label>Menu</span>
+      <span aria-hidden="true">☰</span>
+    </button>
+    <nav class="site-nav" id="navigation" aria-label="Navigation principale">
+      {% for key, label in [
+        ('index', 'Accueil'),
+        ('billetterie', 'Boutique'),
+        ('associations', 'Associations'),
+        ('evenements', 'Événements'),
+        ('calendrier', 'Calendrier'),
+        ('bde', 'BDE'),
+        ('rec', 'REC')
+      ] %}
+        <a href="{{ url_for('home') if key == 'index' else url_for('public_page', page=key) }}"
+           {% if page == key %}aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+      <a class="button button-light nav-login" href="{{ url_for('public_page', page='login') }}"
+         {% if page == 'login' %}aria-current="page"{% endif %}>Connexion</a>
+    </nav>
+  </div>
+</header>

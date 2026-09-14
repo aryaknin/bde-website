@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow">Ensemble</p>
+      <h1>Les événements <em>du BDE</em></h1>
+      <p>Soirées, tournois et rencontres : les rendez-vous du campus.</p>
+    </div>
+  </section>
+  <section class="section" aria-label="Les événements">
+    <div class="container">
+      {% include "partials/events.html" %}
+    </div>
+  </section>
+{% endblock %}

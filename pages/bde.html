@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow">Nous</p>
+      <h1>{{ site.site_name }}</h1>
+      <p>{{ site.site_tagline }}</p>
+    </div>
+  </section>
+  <section class="section">
+    <div class="container prose">
+      <h2>Un BDE porté par les étudiants</h2>
+      <p>Le bureau des élèves rassemble la communauté étudiante autour de projets,
+        d’événements et de la vie associative à l’ORT Sup, à Montreuil.</p>
+      <div class="notice">
+        <h3>L’équipe se présente bientôt</h3>
+        <p>Tu retrouveras ici les membres du BDE, leurs rôles et leurs projets.</p>
+      </div>
+      <a class="button button-outline" href="{{ url_for('public_page', page='associations') }}">Découvrir les associations →</a>
+    </div>
+  </section>
+{% endblock %}

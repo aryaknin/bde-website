@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow">La boutique</p>
+      <h1>Aux couleurs <em>du BDE</em></h1>
+      <p>Les adhésions, articles et inscriptions proposés par les associations.</p>
+    </div>
+  </section>
+  <section class="section">
+    <div class="container">
+      <p class="notice">La commande et le paiement en ligne seront disponibles prochainement.</p>
+      <div class="card-grid">
+        {% for product in products %}
+          <article class="card">
+            <p class="eyebrow">{{ product.association_name or site.site_name }}</p>
+            <h2>{{ product.name }}</h2>
+            <p>{{ product.description }}</p>
+            <p class="price">{{ product.price_cents | price }}</p>
+            {% if product.stock is not none %}
+              <p class="card-meta">{{ product.stock }} disponible(s)</p>
+            {% endif %}
+          </article>
+        {% else %}
+          <p class="empty-state">Aucun article disponible pour le moment.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+{% endblock %}

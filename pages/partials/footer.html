@@ -1,0 +1,40 @@
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a href="{{ url_for('home') }}" aria-label="{{ site.site_name }} — Accueil">
+          <img class="footer-logo" src="{{ url_for('static', filename='images/logo-ort-sup.png') }}" alt="{{ site.site_name }}" loading="lazy">
+        </a>
+        <p>{{ site.site_tagline }}</p>
+        <address>
+          <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>
+          <a href="{{ site.campus_maps_url }}" target="_blank" rel="noopener noreferrer">{{ site.campus_address }}</a>
+        </address>
+      </div>
+      <div>
+        <h2>La vie du campus</h2>
+        <ul>
+          <li><a href="{{ url_for('public_page', page='associations') }}">Associations</a></li>
+          <li><a href="{{ url_for('public_page', page='evenements') }}">Événements</a></li>
+          <li><a href="{{ url_for('public_page', page='billetterie') }}">Boutique</a></li>
+          <li><a href="{{ url_for('public_page', page='calendrier') }}">Calendrier</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Le BDE</h2>
+        <ul>
+          <li><a href="{{ url_for('public_page', page='bde') }}">Nous découvrir</a></li>
+          <li><a href="{{ url_for('public_page', page='rec') }}">Respect, écoute et consentement</a></li>
+          <li><a href="{{ url_for('public_page', page='demande-domaine') }}">Un projet associatif ?</a></li>
+          {% if site.instagram_url and site.instagram_url != '#' %}
+            <li><a href="{{ site.instagram_url }}" target="_blank" rel="noopener noreferrer">Instagram ↗</a></li>
+          {% endif %}
+          {% if site.linkedin_url and site.linkedin_url != '#' %}
+            <li><a href="{{ site.linkedin_url }}" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+    <p class="copyright">© {{ year }} {{ site.site_name }} — Tous droits réservés.</p>
+  </div>
+</footer>

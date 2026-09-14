@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="section">
+    <div class="container prose">
+      <p class="eyebrow">Erreur 404</p>
+      <h1>Page introuvable</h1>
+      <p>Cette page n’existe pas ou a été déplacée.</p>
+      <a class="button button-outline" href="{{ url_for('home') }}">Retour à l’accueil →</a>
+    </div>
+  </section>
+{% endblock %}

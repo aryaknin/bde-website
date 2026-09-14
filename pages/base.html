@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="{{ site.site_name }} — {{ site.site_tagline }}">
+    <title>{{ title }} — {{ site.site_name }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/logoort-removebg-preview.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
+    <script src="{{ url_for('static', filename='js/site.js') }}" defer></script>
+  </head>
+  <body class="{{ 'is-home' if page == 'index' else '' }}">
+    <a class="skip-link" href="#contenu">Aller au contenu</a>
+    {% include "partials/header.html" %}
+    <main id="contenu" tabindex="-1">
+      {% block content %}{% endblock %}
+    </main>
+    {% include "partials/footer.html" %}
+    {% block dialogs %}{% endblock %}
+  </body>
+</html>
