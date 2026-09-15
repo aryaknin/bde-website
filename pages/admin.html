@@ -12,11 +12,12 @@
   <section class="section admin-section">
     <div class="container">
       <div class="admin-tabs" role="tablist" aria-label="Sections d’administration">
-        <button type="button" role="tab" aria-selected="true" aria-controls="admin-accounts" data-admin-tab="accounts">Comptes</button>
-        <button type="button" role="tab" aria-selected="false" aria-controls="admin-bde" data-admin-tab="bde">Page BDE</button>
+        <button type="button" role="tab" aria-selected="{{ 'true' if active_admin_tab == 'accounts' else 'false' }}" aria-controls="admin-accounts" data-admin-tab="accounts">Comptes</button>
+        <button type="button" role="tab" aria-selected="{{ 'true' if active_admin_tab == 'bde' else 'false' }}" aria-controls="admin-bde" data-admin-tab="bde">Page BDE</button>
+        <button type="button" role="tab" aria-selected="{{ 'true' if active_admin_tab == 'cotisations' else 'false' }}" aria-controls="admin-contributions" data-admin-tab="cotisations">Cotisations</button>
       </div>
 
-      <div id="admin-accounts" role="tabpanel" data-admin-panel="accounts">
+      <div id="admin-accounts" role="tabpanel" data-admin-panel="accounts" {% if active_admin_tab != 'accounts' %}hidden{% endif %}>
         <div class="admin-layout">
           <article class="admin-panel">
             <p class="eyebrow">Nouveau compte</p>
@@ -26,6 +27,10 @@
               <label>
                 <span>Identifiant</span>
                 <input name="username" minlength="3" maxlength="40" autocomplete="off" required>
+              </label>
+              <label>
+                <span>Adresse e-mail <small>facultative</small></span>
+                <input type="email" name="email" maxlength="254" autocomplete="off">
               </label>
               <label>
                 <span>Mot de passe provisoire</span>
@@ -53,6 +58,7 @@
                     <strong>{{ user.username }}</strong>
                     <span>
                       {% if user.role == 'superadmin' %}Superadministrateur{% elif user.role == 'admin' %}Administrateur{% elif user.role == 'bde' %}Membre du BDE{% else %}Membre{% endif %}
+                      {% if user.email %} · {{ user.email }}{% endif %}
                     </span>
                   </div>
                   {% if user.is_protected or user.role == 'superadmin' %}
@@ -76,7 +82,7 @@
         </div>
       </div>
 
-      <div id="admin-bde" role="tabpanel" data-admin-panel="bde" hidden>
+      <div id="admin-bde" role="tabpanel" data-admin-panel="bde" {% if active_admin_tab != 'bde' %}hidden{% endif %}>
         <div class="admin-bde-layout">
           <article class="admin-panel">
             <p class="eyebrow">Profil sans compte</p>
@@ -149,6 +155,83 @@
               </article>
             {% else %}
               <p class="empty-state">Aucun profil BDE n’existe encore.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div id="admin-contributions" role="tabpanel" data-admin-panel="cotisations" {% if active_admin_tab != 'cotisations' %}hidden{% endif %}>
+        <div class="contribution-admin-layout">
+          <article class="admin-panel">
+            <p class="eyebrow">Nouvelle échéance</p>
+            <h2>Ajouter une cotisation</h2>
+            <form class="form-stack" method="post" action="{{ url_for('create_contribution') }}">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <label>
+                <span>Compte</span>
+                <select name="user_id" required>
+                  <option value="">Choisir un compte</option>
+                  {% for user in users %}
+                    {% if not user.is_protected or current_user.role == 'superadmin' %}
+                      <option value="{{ user.id }}">{{ user.username }}{% if user.email %} — {{ user.email }}{% endif %}</option>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+              </label>
+              <label><span>Année scolaire</span><input name="school_year" value="{{ current_school_year }}" pattern="20[0-9]{2}-20[0-9]{2}" required></label>
+              <label><span>Montant en euros</span><input type="number" name="amount" value="{{ '%.2f' | format(default_membership_fee_cents / 100) }}" min="0" step="0.01" required></label>
+              <label>
+                <span>Statut</span>
+                <select name="status">
+                  {% for value, label in contribution_statuses.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+              </label>
+              <label><span>Moyen de paiement</span><input name="payment_method" maxlength="80" placeholder="HelloAsso, espèces, virement…"></label>
+              <label><span>Référence externe</span><input name="external_reference" maxlength="120"></label>
+              <label><span>Date de paiement</span><input type="datetime-local" name="paid_at"></label>
+              <label><span>Note interne</span><textarea name="notes" maxlength="1000" rows="3"></textarea></label>
+              <button class="button button-primary" type="submit">Ajouter la cotisation</button>
+            </form>
+          </article>
+
+          <div class="contribution-admin-list">
+            {% for contribution in contributions %}
+              {% set protected_contribution = contribution.account_is_protected and current_user.role != 'superadmin' %}
+              <article class="contribution-admin-row">
+                <div class="contribution-admin-summary">
+                  <div>
+                    <strong>{{ contribution.username }}</strong>
+                    <span>{{ contribution.school_year }}{% if contribution.email %} · {{ contribution.email }}{% endif %}</span>
+                  </div>
+                  <strong>{{ contribution.amount_cents | price }}</strong>
+                  <span class="contribution-status contribution-status--{{ contribution.status }}">{{ contribution_statuses[contribution.status] }}</span>
+                </div>
+                {% if protected_contribution %}
+                  <p class="protected-note">La cotisation du supercompte protégé n’est modifiable que par lui-même.</p>
+                {% else %}
+                  <details class="contribution-edit-details">
+                    <summary>Modifier le suivi</summary>
+                    <form class="contribution-admin-form" method="post" action="{{ url_for('update_contribution', contribution_id=contribution.id) }}">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <label><span>Année</span><input name="school_year" value="{{ contribution.school_year }}" pattern="20[0-9]{2}-20[0-9]{2}" required></label>
+                      <label><span>Montant en euros</span><input type="number" name="amount" value="{{ '%.2f' | format(contribution.amount_cents / 100) }}" min="0" step="0.01" required></label>
+                      <label>
+                        <span>Statut</span>
+                        <select name="status">
+                          {% for value, label in contribution_statuses.items() %}<option value="{{ value }}" {% if contribution.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                        </select>
+                      </label>
+                      <label><span>Moyen de paiement</span><input name="payment_method" maxlength="80" value="{{ contribution.payment_method or '' }}"></label>
+                      <label><span>Référence</span><input name="external_reference" maxlength="120" value="{{ contribution.external_reference or '' }}"></label>
+                      <label><span>Date de paiement</span><input type="datetime-local" name="paid_at" value="{{ contribution.paid_at[:16] if contribution.paid_at else '' }}"></label>
+                      <label class="form-field--wide"><span>Note interne</span><textarea name="notes" maxlength="1000" rows="3">{{ contribution.notes }}</textarea></label>
+                      <div class="form-field--wide"><button class="button button-primary" type="submit">Enregistrer le suivi</button></div>
+                    </form>
+                  </details>
+                {% endif %}
+              </article>
+            {% else %}
+              <p class="empty-state">Aucune cotisation n’est enregistrée.</p>
             {% endfor %}
           </div>
         </div>

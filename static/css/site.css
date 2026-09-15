@@ -202,6 +202,12 @@ body.page-leaving .site-footer {
   transform: none;
 }
 
+.button.is-disabled {
+  cursor: not-allowed;
+  opacity: .68;
+  transform: none;
+}
+
 .button-primary {
   background: var(--blue);
   color: white;
@@ -366,6 +372,15 @@ body.page-leaving .site-footer {
 .site-nav .nav-login {
   margin-left: .6rem;
   padding-inline: 1rem;
+}
+
+.site-nav .nav-register {
+  margin-left: .6rem;
+  padding-inline: 1rem;
+}
+
+.site-nav .nav-register + .nav-login {
+  margin-left: 0;
 }
 
 .menu-toggle {
@@ -1192,7 +1207,8 @@ body.page-leaving .site-footer {
 .form-stack,
 .event-admin-form,
 .profile-form,
-.profile-admin-form {
+.profile-admin-form,
+.contribution-admin-form {
   display: grid;
   gap: 1rem;
 }
@@ -1200,7 +1216,8 @@ body.page-leaving .site-footer {
 .form-stack label,
 .form-field,
 .profile-form label,
-.profile-admin-form label {
+.profile-admin-form label,
+.contribution-admin-form label {
   display: grid;
   gap: .4rem;
   color: var(--ink);
@@ -1211,10 +1228,14 @@ body.page-leaving .site-footer {
 
 .form-stack input,
 .form-stack select,
+.form-stack textarea,
 .event-admin-form input,
 .event-admin-form textarea,
 .event-admin-form select,
-.user-row select {
+.user-row select,
+.contribution-admin-form input,
+.contribution-admin-form select,
+.contribution-admin-form textarea {
   width: 100%;
   border: 1px solid #b8ccd8;
   border-radius: .7rem;
@@ -1228,7 +1249,10 @@ body.page-leaving .site-footer {
 .profile-form input,
 .profile-form textarea,
 .profile-admin-form input,
-.profile-admin-form textarea {
+.profile-admin-form textarea,
+.contribution-admin-form input,
+.contribution-admin-form select,
+.contribution-admin-form textarea {
   width: 100%;
   border: 1px solid #b8ccd8;
   border-radius: .7rem;
@@ -1242,13 +1266,17 @@ body.page-leaving .site-footer {
 .profile-form input:focus,
 .profile-form textarea:focus,
 .profile-admin-form input:focus,
-.profile-admin-form textarea:focus {
+.profile-admin-form textarea:focus,
+.contribution-admin-form input:focus,
+.contribution-admin-form select:focus,
+.contribution-admin-form textarea:focus {
   border-color: var(--cyan);
   outline: 3px solid #12b9e526;
 }
 
 .form-stack input:focus,
 .form-stack select:focus,
+.form-stack textarea:focus,
 .event-admin-form input:focus,
 .event-admin-form textarea:focus,
 .event-admin-form select:focus,
@@ -1286,6 +1314,31 @@ body.page-leaving .site-footer {
   display: block;
   width: 100%;
   margin-top: 1.5rem;
+}
+
+.register-card {
+  max-width: 36rem;
+}
+
+.auth-alternative {
+  margin: 1.25rem 0 0;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.auth-alternative a {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.register-note {
+  margin: .25rem 0 0;
+  border-radius: .75rem;
+  padding: .85rem 1rem;
+  background: #edf7fc;
+  color: var(--muted);
+  font-size: .8rem;
+  text-align: left;
 }
 
 .page-hero--compact {
@@ -1354,7 +1407,8 @@ body.page-leaving .site-footer {
 }
 
 .profile-form,
-.profile-admin-form {
+.profile-admin-form,
+.contribution-admin-form {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -1473,6 +1527,206 @@ body.page-leaving .site-footer {
   margin: .85rem 0 0;
   color: var(--muted);
   font-size: .82rem;
+}
+
+.membership-panel {
+  margin-top: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  padding: clamp(1.4rem, 3vw, 2.2rem);
+  background: linear-gradient(135deg, #fff, #eff9fe);
+  box-shadow: 0 1rem 2.8rem #032f610c;
+}
+
+.membership-panel__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.membership-panel__heading h2 {
+  margin-bottom: .65rem;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+}
+
+.membership-panel__heading p:last-child {
+  max-width: 48rem;
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.membership-amount {
+  display: grid;
+  flex: none;
+  justify-items: end;
+  gap: .5rem;
+}
+
+.membership-amount > strong {
+  color: var(--blue-deep);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1;
+}
+
+.contribution-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: .35rem .65rem;
+  background: #fff0d7;
+  color: #855000;
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.contribution-status--pending {
+  background: #e8f4fb;
+  color: var(--blue-deep);
+}
+
+.contribution-status--paid {
+  background: #e2f5e9;
+  color: #16623a;
+}
+
+.contribution-status--exempt {
+  background: #edf0f2;
+  color: #59656e;
+}
+
+.membership-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: .75rem;
+  margin: 2rem 0 0;
+}
+
+.membership-facts div {
+  border: 1px solid var(--line);
+  border-radius: .85rem;
+  padding: .85rem 1rem;
+  background: #ffffffd9;
+}
+
+.membership-facts dt {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 750;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.membership-facts dd {
+  margin: .2rem 0 0;
+  color: var(--ink);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.membership-payment {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .8rem 1rem;
+  margin-top: 1.5rem;
+}
+
+.membership-payment p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.membership-history {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.membership-history summary,
+.contribution-edit-details summary {
+  color: var(--blue);
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.table-scroll {
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+.contribution-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.contribution-table th,
+.contribution-table td {
+  border-bottom: 1px solid var(--line);
+  padding: .8rem;
+  white-space: nowrap;
+}
+
+.contribution-table th {
+  color: var(--muted);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.contribution-admin-layout {
+  display: grid;
+  grid-template-columns: minmax(18rem, .7fr) minmax(32rem, 1.3fr);
+  align-items: start;
+  gap: 1.25rem;
+}
+
+.contribution-admin-list {
+  display: grid;
+  gap: .85rem;
+}
+
+.contribution-admin-row {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 1rem;
+  background: white;
+  box-shadow: 0 .8rem 2rem #032f610a;
+}
+
+.contribution-admin-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1rem;
+}
+
+.contribution-admin-summary > div {
+  display: grid;
+  min-width: 0;
+}
+
+.contribution-admin-summary > div span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: .78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contribution-edit-details {
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: .8rem;
+}
+
+.contribution-admin-form {
+  margin-top: 1rem;
 }
 
 .dashboard-card,
@@ -1765,6 +2019,10 @@ body.page-leaving .site-footer {
     margin-left: 0;
   }
 
+  .site-nav .nav-register {
+    margin-left: 0;
+  }
+
   .portal-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1785,7 +2043,8 @@ body.page-leaving .site-footer {
   .footer-grid,
   .dashboard-grid,
   .admin-layout,
-  .admin-bde-layout {
+  .admin-bde-layout,
+  .contribution-admin-layout {
     grid-template-columns: 1fr;
   }
 
@@ -1821,6 +2080,14 @@ body.page-leaving .site-footer {
 
   .user-row form .button {
     width: 100%;
+  }
+
+  .membership-panel__heading {
+    flex-direction: column;
+  }
+
+  .membership-amount {
+    justify-items: start;
   }
 
   .member-dialog__layout {
@@ -1883,12 +2150,14 @@ body.page-leaving .site-footer {
 
   .team-grid,
   .profile-form,
-  .profile-admin-form {
+  .profile-admin-form,
+  .contribution-admin-form {
     grid-template-columns: 1fr;
   }
 
   .profile-form .form-field--wide,
-  .profile-admin-form .form-field--wide {
+  .profile-admin-form .form-field--wide,
+  .contribution-admin-form .form-field--wide {
     grid-column: auto;
   }
 
@@ -1899,6 +2168,20 @@ body.page-leaving .site-footer {
   .profile-admin-summary .visibility-badge {
     grid-column: 1 / -1;
     justify-self: start;
+  }
+
+  .contribution-admin-summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .contribution-admin-summary .contribution-status {
+    grid-column: 1 / -1;
+  }
+
+  .admin-tabs {
+    display: flex;
+    max-width: 100%;
+    overflow-x: auto;
   }
 
   .login-card {

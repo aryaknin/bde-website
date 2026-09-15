@@ -38,6 +38,7 @@
         <article class="dashboard-card">
           <p class="eyebrow">Mon compte</p>
           <h2>{{ current_user.username }}</h2>
+          {% if current_user.email %}<p>{{ current_user.email }}</p>{% endif %}
           <p>Ton niveau d’autorité est <strong>
             {% if current_user.role == 'superadmin' %}superadministrateur{% elif current_user.role == 'admin' %}administrateur{% elif current_user.role == 'bde' %}membre du BDE{% else %}membre{% endif %}
           </strong>.</p>
@@ -61,6 +62,74 @@
           </article>
         {% endif %}
       </div>
+
+      <article class="membership-panel" id="mes-cotisations">
+        <div class="membership-panel__heading">
+          <div>
+            <p class="eyebrow">Adhésion au BDE</p>
+            <h2>Ma cotisation {{ current_school_year }}</h2>
+            <p>Retrouve ici ton statut de cotisation. Les paiements en ligne seront reliés à HelloAsso ultérieurement.</p>
+          </div>
+          {% if current_contribution %}
+            <div class="membership-amount">
+              <strong>{{ current_contribution.amount_cents | price }}</strong>
+              <span class="contribution-status contribution-status--{{ current_contribution.status }}">
+                {{ contribution_statuses[current_contribution.status] }}
+              </span>
+            </div>
+          {% endif %}
+        </div>
+
+        {% if current_contribution %}
+          <dl class="membership-facts">
+            <div><dt>Année scolaire</dt><dd>{{ current_contribution.school_year }}</dd></div>
+            <div><dt>Montant</dt><dd>{{ current_contribution.amount_cents | price }}</dd></div>
+            <div><dt>Statut</dt><dd>{{ contribution_statuses[current_contribution.status] }}</dd></div>
+            {% if current_contribution.paid_at %}
+              <div><dt>Réglée le</dt><dd>{{ current_contribution.paid_at | date_fr }}</dd></div>
+            {% endif %}
+            {% if current_contribution.payment_method %}
+              <div><dt>Moyen de paiement</dt><dd>{{ current_contribution.payment_method }}</dd></div>
+            {% endif %}
+            {% if current_contribution.external_reference %}
+              <div><dt>Référence</dt><dd>{{ current_contribution.external_reference }}</dd></div>
+            {% endif %}
+          </dl>
+          {% if current_contribution.status in ('due', 'pending') %}
+            <div class="membership-payment">
+              {% if helloasso_membership_url %}
+                <a class="button button-primary" href="{{ helloasso_membership_url }}" target="_blank" rel="noopener noreferrer">Payer avec HelloAsso ↗</a>
+              {% else %}
+                <span class="button button-secondary is-disabled" aria-disabled="true">Paiement en ligne bientôt disponible</span>
+              {% endif %}
+              <p>Aucun paiement n’est effectué directement sur ce site pour le moment.</p>
+            </div>
+          {% endif %}
+        {% else %}
+          <p class="empty-state">Aucune cotisation n’est encore associée à ton compte.</p>
+        {% endif %}
+
+        {% if contributions %}
+          <details class="membership-history">
+            <summary>Voir l’historique des cotisations</summary>
+            <div class="table-scroll">
+              <table class="contribution-table">
+                <thead><tr><th>Année</th><th>Montant</th><th>Statut</th><th>Date de paiement</th></tr></thead>
+                <tbody>
+                  {% for contribution in contributions %}
+                    <tr>
+                      <td>{{ contribution.school_year }}</td>
+                      <td>{{ contribution.amount_cents | price }}</td>
+                      <td><span class="contribution-status contribution-status--{{ contribution.status }}">{{ contribution_statuses[contribution.status] }}</span></td>
+                      <td>{{ contribution.paid_at | date_fr if contribution.paid_at else '—' }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        {% endif %}
+      </article>
 
       {% if bde_profile %}
         <article class="profile-editor" id="mon-profil-bde">

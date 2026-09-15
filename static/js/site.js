@@ -174,7 +174,8 @@
       tabButton.addEventListener("click", () => activateAdminTab(tabButton.dataset.adminTab, true));
     });
     const requestedTab = new URLSearchParams(window.location.search).get("onglet");
-    activateAdminTab(requestedTab === "bde" ? "bde" : "accounts");
+    const availableTabs = adminTabs.map((tabButton) => tabButton.dataset.adminTab);
+    activateAdminTab(availableTabs.includes(requestedTab) ? requestedTab : "accounts");
   }
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

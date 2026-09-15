@@ -17,6 +17,8 @@ DEFAULT_SETTINGS = {
     "instagram_url": "https://www.instagram.com/bde.ortmontreuil",
     "linkedin_url": "#",
     "academic_year": "2026–2027",
+    "membership_fee_cents": "1500",
+    "helloasso_membership_url": "",
     "institution_since": "1956",
     "poles_count": "30",
     "members_count": "26",
@@ -86,6 +88,7 @@ def initialise_database():
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                email TEXT COLLATE NOCASE,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'member'
                     CHECK (role IN ('member', 'bde', 'admin', 'superadmin')),
@@ -103,14 +106,15 @@ def initialise_database():
                 CREATE TABLE users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                    email TEXT COLLATE NOCASE,
                     password_hash TEXT NOT NULL,
                     role TEXT NOT NULL DEFAULT 'member'
                         CHECK (role IN ('member', 'bde', 'admin', 'superadmin')),
                     is_protected INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
-                INSERT INTO users (id, username, password_hash, role, is_protected, created_at)
-                    SELECT id, username, password_hash, role, is_protected, created_at
+                INSERT INTO users (id, username, email, password_hash, role, is_protected, created_at)
+                    SELECT id, username, NULL, password_hash, role, is_protected, created_at
                     FROM users_before_bde_role;
                 DROP TABLE users_before_bde_role;
             """)
@@ -133,6 +137,30 @@ def initialise_database():
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS contributions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                school_year TEXT NOT NULL,
+                amount_cents INTEGER NOT NULL CHECK (amount_cents >= 0),
+                status TEXT NOT NULL DEFAULT 'due'
+                    CHECK (status IN ('due', 'pending', 'paid', 'exempt')),
+                payment_method TEXT,
+                external_reference TEXT,
+                paid_at TEXT,
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (user_id, school_year),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+        """)
+        user_columns = {row["name"] for row in db.execute("PRAGMA table_info(users)")}
+        if "email" not in user_columns:
+            db.execute("ALTER TABLE users ADD COLUMN email TEXT COLLATE NOCASE")
+        db.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique
+            ON users(email COLLATE NOCASE)
+            WHERE email IS NOT NULL AND email != ''
         """)
         # Migration légère pour les bases créées avant l'ajout du lien Google Agenda.
         event_columns = {
@@ -211,38 +239,47 @@ def products():
 
 def user_by_id(user_id):
     items = query("""
-        SELECT id, username, role, is_protected, created_at
+        SELECT id, username, email, role, is_protected, created_at
         FROM users WHERE id = ?
     """, (user_id,), booleans=("is_protected",))
     return items[0] if items else None
 
 
-def user_credentials(username):
+def user_credentials(identifier):
     items = query("""
-        SELECT id, username, password_hash, role, is_protected, created_at
-        FROM users WHERE username = ? COLLATE NOCASE
-    """, (username,), booleans=("is_protected",))
+        SELECT id, username, email, password_hash, role, is_protected, created_at
+        FROM users
+        WHERE username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE
+    """, (identifier, identifier), booleans=("is_protected",))
     return items[0] if items else None
 
 
 def users():
     return query("""
-        SELECT id, username, role, is_protected, created_at
+        SELECT id, username, email, role, is_protected, created_at
         FROM users
         ORDER BY CASE role WHEN 'superadmin' THEN 0 WHEN 'admin' THEN 1 WHEN 'bde' THEN 2 ELSE 3 END,
                  username COLLATE NOCASE
     """, booleans=("is_protected",))
 
 
-def create_user(username, password_hash, role="member", is_protected=False):
+def create_user(username, password_hash, role="member", is_protected=False, email=None):
     if role not in ("member", "bde", "admin", "superadmin"):
         raise ValueError("Rôle inconnu")
     try:
         with get_db() as db:
+            identifiers = (username, email or username)
+            existing = db.execute("""
+                SELECT 1 FROM users
+                WHERE lower(username) IN (lower(?), lower(?))
+                   OR lower(COALESCE(email, '')) IN (lower(?), lower(?))
+            """, identifiers + identifiers).fetchone()
+            if existing:
+                return None
             cursor = db.execute("""
-                INSERT INTO users (username, password_hash, role, is_protected)
-                VALUES (?, ?, ?, ?)
-            """, (username, password_hash, role, int(is_protected)))
+                INSERT INTO users (username, email, password_hash, role, is_protected)
+                VALUES (?, ?, ?, ?, ?)
+            """, (username, email or None, password_hash, role, int(is_protected)))
             if role in ("bde", "admin", "superadmin"):
                 db.execute("""
                     INSERT INTO bde_profiles (user_id, display_name, team_role, is_visible)
@@ -355,6 +392,82 @@ def delete_manual_bde_profile(profile_id):
             "DELETE FROM bde_profiles WHERE id = ? AND user_id IS NULL", (profile_id,)
         )
         return cursor.rowcount == 1
+
+
+def ensure_contributions(school_year, amount_cents):
+    """Crée l’échéance annuelle manquante pour tous les comptes existants."""
+    with get_db() as db:
+        db.execute("""
+            INSERT OR IGNORE INTO contributions (user_id, school_year, amount_cents)
+            SELECT id, ?, ? FROM users
+        """, (school_year, amount_cents))
+
+
+def create_contribution(user_id, school_year, amount_cents, status="due"):
+    if status not in ("due", "pending", "paid", "exempt"):
+        return None
+    try:
+        with get_db() as db:
+            cursor = db.execute("""
+                INSERT INTO contributions (user_id, school_year, amount_cents, status)
+                SELECT id, ?, ?, ? FROM users WHERE id = ?
+            """, (school_year, amount_cents, status, user_id))
+            return cursor.lastrowid if cursor.rowcount == 1 else None
+    except sqlite3.IntegrityError:
+        return None
+
+
+def contributions_for_user(user_id):
+    return query("""
+        SELECT * FROM contributions
+        WHERE user_id = ?
+        ORDER BY school_year DESC, id DESC
+    """, (user_id,))
+
+
+def contributions_with_users():
+    return query("""
+        SELECT contributions.*, users.username, users.email,
+               users.role AS account_role, users.is_protected AS account_is_protected
+        FROM contributions JOIN users ON users.id = contributions.user_id
+        ORDER BY contributions.school_year DESC,
+                 CASE contributions.status
+                     WHEN 'pending' THEN 0 WHEN 'due' THEN 1
+                     WHEN 'paid' THEN 2 ELSE 3
+                 END,
+                 users.username COLLATE NOCASE
+    """, booleans=("account_is_protected",))
+
+
+def contribution_by_id(contribution_id):
+    items = query("""
+        SELECT contributions.*, users.username, users.email,
+               users.role AS account_role, users.is_protected AS account_is_protected
+        FROM contributions JOIN users ON users.id = contributions.user_id
+        WHERE contributions.id = ?
+    """, (contribution_id,), booleans=("account_is_protected",))
+    return items[0] if items else None
+
+
+def update_contribution(contribution_id, data):
+    if data["status"] not in ("due", "pending", "paid", "exempt"):
+        return False
+    try:
+        with get_db() as db:
+            cursor = db.execute("""
+                UPDATE contributions
+                SET school_year = ?, amount_cents = ?, status = ?, payment_method = ?,
+                    external_reference = ?, paid_at = ?, notes = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (
+                data["school_year"], data["amount_cents"], data["status"],
+                data["payment_method"], data["external_reference"], data["paid_at"],
+                data["notes"], contribution_id,
+            ))
+            return cursor.rowcount == 1
+    except sqlite3.IntegrityError:
+        return False
 
 
 def create_event(data):

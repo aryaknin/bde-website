@@ -25,6 +25,8 @@
           {{ current_user.username }}
         </a>
       {% else %}
+        <a class="button button-outline-light nav-register" href="{{ url_for('register') }}"
+           {% if page == 'register' %}aria-current="page"{% endif %}>Créer un compte</a>
         <a class="button button-light nav-login" href="{{ url_for('login') }}"
            {% if page == 'login' %}aria-current="page"{% endif %}>Connexion</a>
       {% endif %}

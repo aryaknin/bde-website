@@ -89,7 +89,11 @@
     <h2 id="welcome-title">Nouveau à l’ORT Sup&nbsp;?</h2>
     <p id="welcome-copy">Découvre {{ site.site_name }}, ses projets et ses prochains événements.</p>
     <div class="welcome-actions">
-      <a class="button button-light" href="{{ url_for('public_page', page='billetterie') }}">Cotiser au BDE ↗</a>
+      {% if current_user %}
+        <a class="button button-light" href="{{ url_for('account') }}#mes-cotisations">Voir ma cotisation →</a>
+      {% else %}
+        <a class="button button-light" href="{{ url_for('register') }}">Créer mon compte →</a>
+      {% endif %}
       <a class="button button-outline-light" href="{{ url_for('public_page', page='evenements') }}">Voir les événements</a>
     </div>
   </dialog>

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="section login-section">
+    <div class="container">
+      <div class="card login-card register-card">
+        <p class="eyebrow">Rejoindre le BDE</p>
+        <h1>Créer un compte</h1>
+        <p>Crée ton espace membre pour suivre tes cotisations et accéder aux prochains services du BDE.</p>
+        <form class="form-stack" method="post" action="{{ url_for('register') }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <label>
+            <span>Identifiant</span>
+            <input name="username" minlength="3" maxlength="40" autocomplete="username" value="{{ request.form.get('username', '') }}" autofocus required>
+          </label>
+          <label>
+            <span>Adresse e-mail</span>
+            <input type="email" name="email" maxlength="254" autocomplete="email" value="{{ request.form.get('email', '') }}" required>
+          </label>
+          <label>
+            <span>Mot de passe <small>8 caractères minimum</small></span>
+            <input type="password" name="password" minlength="8" autocomplete="new-password" required>
+          </label>
+          <label>
+            <span>Confirmer le mot de passe</span>
+            <input type="password" name="password_confirmation" minlength="8" autocomplete="new-password" required>
+          </label>
+          <p class="register-note">Le compte créé possède uniquement les droits membre. Les droits BDE et administrateur restent attribués manuellement.</p>
+          <button class="button button-primary" type="submit">Créer mon compte</button>
+        </form>
+        <p class="auth-alternative">Déjà inscrit ? <a href="{{ url_for('login') }}">Se connecter</a></p>
+        <a class="text-link" href="{{ url_for('home') }}">Retour à l’accueil →</a>
+      </div>
+    </div>
+  </section>
+{% endblock %}

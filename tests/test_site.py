@@ -14,7 +14,7 @@ from werkzeug.security import generate_password_hash
 
 from backend import app as app_module
 from backend import database
-from backend.app import PAGES, create_app
+from backend.app import PAGES, create_app, current_school_year
 from backend.seed import seed_database
 
 
@@ -161,6 +161,58 @@ class SiteTests(unittest.TestCase):
         account = self.client.get("/compte.html").get_data(as_text=True)
         self.assertIn("Bonjour SuperTest", account)
         self.assertIn("Superadministrateur protégé", account)
+
+    def test_public_registration_creates_member_and_contribution(self):
+        self.assertIn("Créer un compte", self.client.get("/").get_data(as_text=True))
+        token = self.csrf_token(self.client, "/register.html")
+        response = self.client.post("/register.html", data={
+            "_csrf_token": token,
+            "username": "NouvelleEtudiante",
+            "email": "nouvelle@example.com",
+            "password": "motdepasse123",
+            "password_confirmation": "motdepasse123",
+            "role": "superadmin",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/compte.html"))
+        user = database.user_credentials("nouvelle@example.com")
+        self.assertEqual(user["username"], "NouvelleEtudiante")
+        self.assertEqual(user["role"], "member")
+        self.assertNotEqual(user["password_hash"], "motdepasse123")
+        contributions = database.contributions_for_user(user["id"])
+        self.assertEqual(len(contributions), 1)
+        self.assertEqual(contributions[0]["school_year"], current_school_year())
+        self.assertEqual(contributions[0]["status"], "due")
+        account = self.client.get("/compte.html").get_data(as_text=True)
+        self.assertIn("Ma cotisation", account)
+        self.assertIn("À régler", account)
+        self.assertIn("Paiement en ligne bientôt disponible", account)
+
+    def test_registration_rejects_invalid_or_duplicate_data(self):
+        token = self.csrf_token(self.client, "/register.html")
+        invalid = self.client.post("/register.html", data={
+            "_csrf_token": token,
+            "username": "InscriptionTest",
+            "email": "adresse-invalide",
+            "password": "motdepasse123",
+            "password_confirmation": "motdepasse123",
+        })
+        self.assertIn("adresse e-mail valide", invalid.get_data(as_text=True))
+        self.assertIsNone(database.user_credentials("InscriptionTest"))
+
+        database.create_user(
+            "EmailExistant", generate_password_hash("motdepasse123"),
+            email="existant@example.com",
+        )
+        duplicate = self.client.post("/register.html", data={
+            "_csrf_token": token,
+            "username": "AutreIdentifiant",
+            "email": "existant@example.com",
+            "password": "motdepasse123",
+            "password_confirmation": "motdepasse123",
+        })
+        self.assertIn("déjà utilisé", duplicate.get_data(as_text=True))
+        self.assertIsNone(database.user_credentials("AutreIdentifiant"))
 
     def test_invalid_login_and_csrf_are_rejected(self):
         token = self.csrf_token(self.client, "/login.html")
@@ -325,6 +377,64 @@ class SiteTests(unittest.TestCase):
             data={"_csrf_token": token},
         )
         self.assertIsNone(database.bde_profile_by_id(profile["id"]))
+
+    def test_admin_can_manage_contributions_but_not_protected_account(self):
+        client = self.app.test_client()
+        self.login_as(client, "AdminTest", "admin123")
+        admin_page = client.get("/admin.html?onglet=cotisations")
+        html = admin_page.get_data(as_text=True)
+        self.assertIn("Cotisations", html)
+        self.assertIn('data-admin-panel="cotisations"', html)
+        token = self.csrf_token(client, "/admin.html?onglet=cotisations")
+
+        contribution = next(
+            item for item in database.contributions_with_users()
+            if item["user_id"] == self.member_id
+        )
+        response = client.post(
+            f"/admin/contributions/{contribution['id']}/update",
+            data={
+                "_csrf_token": token,
+                "school_year": current_school_year(),
+                "amount": "20,00",
+                "status": "paid",
+                "payment_method": "Espèces",
+                "external_reference": "RECU-42",
+                "paid_at": "2026-09-15T14:30",
+                "notes": "Remis au bureau.",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        updated = database.contribution_by_id(contribution["id"])
+        self.assertEqual(updated["amount_cents"], 2000)
+        self.assertEqual(updated["status"], "paid")
+        self.assertEqual(updated["external_reference"], "RECU-42")
+
+        protected = next(
+            item for item in database.contributions_with_users()
+            if item["user_id"] == self.super_id
+        )
+        client.post(
+            f"/admin/contributions/{protected['id']}/update",
+            data={
+                "_csrf_token": token,
+                "school_year": current_school_year(),
+                "amount": "0",
+                "status": "exempt",
+                "payment_method": "",
+                "external_reference": "",
+                "paid_at": "",
+                "notes": "",
+            },
+        )
+        self.assertEqual(database.contribution_by_id(protected["id"])["status"], "due")
+
+        member_client = self.app.test_client()
+        self.login_as(member_client, "MembreTest", "membre123")
+        member_account = member_client.get("/compte.html").get_data(as_text=True)
+        self.assertIn("20,00 €", member_account)
+        self.assertIn("Payée", member_account)
+        self.assertIn("Espèces", member_account)
 
     def test_member_cannot_open_admin_panel_or_create_event(self):
         client = self.app.test_client()

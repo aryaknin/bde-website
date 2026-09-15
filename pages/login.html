@@ -6,11 +6,11 @@
       <div class="card login-card">
         <p class="eyebrow">Espace personnel</p>
         <h1>Connexion</h1>
-        <p>Connecte-toi avec le compte créé par un administrateur.</p>
+        <p>Connecte-toi avec ton identifiant ou ton adresse e-mail.</p>
         <form class="form-stack" method="post" action="{{ url_for('login') }}">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
           <label>
-            <span>Identifiant</span>
+            <span>Identifiant ou e-mail</span>
             <input name="username" autocomplete="username" autofocus required>
           </label>
           <label>
@@ -19,6 +19,7 @@
           </label>
           <button class="button button-primary" type="submit">Se connecter</button>
         </form>
+        <p class="auth-alternative">Pas encore de compte ? <a href="{{ url_for('register') }}">Créer un compte</a></p>
         <a class="text-link" href="{{ url_for('home') }}">Retour à l’accueil →</a>
       </div>
     </div>

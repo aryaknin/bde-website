@@ -17,7 +17,9 @@ Adresse du campus : **43 Rue Raspail, 93100 Montreuil**.
 - Cartes d’événements ouvrant une fiche détaillée avec un accès au calendrier.
 - Thème bleu ORT, logos et polices servis localement.
 - Connexion par session, comptes membres, membres du BDE, administrateurs et superadministrateur protégé.
+- Inscription publique par identifiant, e-mail et mot de passe, limitée au rôle membre.
 - Création de comptes et gestion des droits depuis l’administration ; ajout d’événements par l’équipe BDE.
+- Suivi annuel des cotisations avec statut, montant, historique et gestion administrative.
 - Annuaire public du BDE avec portraits, fonctions, biographies, liens et fiches détaillées.
 - Modification de son profil public depuis l’espace personnel et gestion complète depuis l’administration.
 - Préparation d’un événement Google Agenda à partir d’un événement créé sur le site.
@@ -26,7 +28,8 @@ Adresse du campus : **43 Rue Raspail, 93100 Montreuil**.
 Le calendrier mensuel Google est intégré dans un cadre responsive. Lorsqu’un événement est
 ouvert depuis la page Événements, sa fiche est mise en avant au-dessus du calendrier.
 Les commandes, les paiements et la synchronisation Google OAuth restent à développer.
-Aucun bouton de paiement ne prétend effectuer une opération disponible.
+L’espace cotisation est prêt à recevoir un lien HelloAsso, mais aucun bouton ne prétend
+effectuer un paiement tant que cette URL n’est pas configurée.
 
 Les événements, articles, compteurs, e-mails et réseaux sociaux sont des exemples.
 Les chiffres historiques (1956, 70 ans, etc.) ne sont pas des informations validées sur l’ORT.
@@ -96,6 +99,7 @@ bde-website/
 │   ├── calendrier.html
 │   ├── bde.html
 │   ├── login.html
+│   ├── register.html
 │   ├── account.html
 │   ├── admin.html
 │   ├── error.html
@@ -148,8 +152,9 @@ Le fichier est `db/bde-ort-sup.db`. Il contient :
 | `associations` | Organisateurs internes liés aux événements et articles |
 | `events` | Événements, horaires, lieux, organisateur facultatif, capacités, prix et lien Google |
 | `products` | Articles, descriptions, stocks et prix |
-| `users` | Identifiants, hash des mots de passe, rôles et protection du supercompte |
+| `users` | Identifiants, e-mails, hash des mots de passe, rôles et protection du supercompte |
 | `bde_profiles` | Profils publics, fonctions, biographies, liens, photos, ordre et visibilité |
+| `contributions` | Cotisations annuelles, montants, statuts, dates, références et notes internes |
 
 Les prix sont enregistrés en centimes. Les dates sont au format ISO 8601 avec
 décalage horaire, puis affichées en français dans le fuseau Europe/Paris.
@@ -171,7 +176,15 @@ UPDATE events SET organizer_name = 'Partenaire exceptionnel' WHERE id = 1;
 UPDATE events
 SET google_calendar_url = 'https://calendar.google.com/calendar/event?eid=...'
 WHERE id = 1;
+UPDATE site_settings SET value = '1500' WHERE key = 'membership_fee_cents';
+UPDATE site_settings
+SET value = 'https://www.helloasso.com/associations/votre-bde/adhesions/cotisation'
+WHERE key = 'helloasso_membership_url';
 ```
+
+`membership_fee_cents` est exprimé en centimes : `1500` correspond à 15 €. Tant que
+`helloasso_membership_url` est vide, l’espace personnel affiche clairement que le paiement
+en ligne n’est pas encore disponible.
 
 L’organisateur affiché est `BDE ORT Sup` lorsque `organizer_name` est vide ou vaut `NULL`.
 Ce champ ne doit être renseigné que lorsqu’un événement est exceptionnellement organisé
@@ -198,6 +211,18 @@ Quatre niveaux sont disponibles :
 Les administrateurs peuvent attribuer les rôles membre, membre du BDE ou administrateur.
 Ils ne peuvent ni modifier ni rétrograder le superadministrateur protégé. Les mots de passe
 sont hashés par Werkzeug et ne sont jamais affichés dans l’administration.
+
+La page `/register.html` permet à un étudiant de créer son propre compte. Le serveur impose
+toujours le rôle `member`, même si une autre valeur est envoyée manuellement. L’e-mail et
+l’identifiant sont uniques, le mot de passe doit contenir au moins huit caractères et le
+nouveau compte reçoit automatiquement sa cotisation pour l’année scolaire en cours. La
+connexion accepte ensuite l’identifiant ou l’adresse e-mail.
+
+L’espace personnel présente la cotisation actuelle et l’historique. Les statuts disponibles
+sont `due` (à régler), `pending` (en attente), `paid` (payée) et `exempt` (exonérée). L’onglet
+« Cotisations » de l’administration permet d’ajouter une année et de corriger le montant,
+le statut, la date, le moyen de paiement, la référence externe et une note interne. Un
+administrateur ordinaire ne peut pas modifier les cotisations du supercompte protégé.
 
 Les comptes `bde`, `admin` et `superadmin` obtiennent automatiquement un profil sur la page
 BDE. Un administrateur peut le masquer, modifier sa fonction et son ordre, ou créer un profil
@@ -257,8 +282,9 @@ python3 -B -m unittest discover -s tests -v
 
 Ces vérifications utilisent une base SQLite temporaire ; elles ne modifient pas la base locale.
 Elles contrôlent les pages et ressources, les données rendues dans le HTML, l’échappement,
-les filtres de l’API, la connexion, les quatre rôles, la protection du supercompte, les jetons
-CSRF, la création d’événements, les profils publics et la validation des portraits.
+les filtres de l’API, l’inscription, la connexion, les quatre rôles, la protection du
+supercompte, les jetons CSRF, la création d’événements, les cotisations, les profils publics
+et la validation des portraits.
 
 ## Nettoyage effectué
 
@@ -280,7 +306,7 @@ informations. Aucun ancien document n’est présenté comme un document ORT.
 1. Renseigner les vrais textes, images, contacts et chiffres.
 2. Renseigner les fonctions, biographies, liens et véritables portraits des membres du BDE.
 3. Configurer OAuth si la création automatique dans Google Agenda devient nécessaire.
-4. Construire les inscriptions, commandes et paiements selon les besoins.
+4. Relier les cotisations à HelloAsso puis construire les commandes et paiements nécessaires.
 5. Choisir la base et l’hébergement de production, puis préparer le déploiement.
 
 Le serveur Flask de développement ne doit pas être utilisé tel quel en production.

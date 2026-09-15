@@ -1,6 +1,7 @@
 """Pages HTML Flask, authentification et API locale du BDE ORT Sup."""
 
 import os
+import re
 import secrets
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -43,9 +44,16 @@ PAGES = {
     "calendrier": "Calendrier",
     "bde": "Le BDE",
     "login": "Connexion",
+    "register": "Créer un compte",
     "demande-domaine": "Projet étudiant",
 }
 TEAM_ROLES = ("bde", "admin", "superadmin")
+CONTRIBUTION_STATUSES = {
+    "due": "À régler",
+    "pending": "En attente",
+    "paid": "Payée",
+    "exempt": "Exonérée",
+}
 UPLOAD_FOLDER = database.PROJECT_DIR / "static" / "uploads" / "members"
 Image.MAX_IMAGE_PIXELS = 25_000_000
 
@@ -62,6 +70,78 @@ def format_date(value):
 
 def format_price(cents):
     return "Gratuit" if cents == 0 else f"{cents / 100:,.2f} €".replace(",", " ").replace(".", ",")
+
+
+def current_school_year(reference=None):
+    reference = reference or datetime.now(PARIS)
+    start = reference.year if reference.month >= 8 else reference.year - 1
+    return f"{start}-{start + 1}"
+
+
+def valid_email(value):
+    return bool(
+        value and len(value) <= 254
+        and re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value)
+    )
+
+
+def membership_configuration():
+    settings = database.site_settings()
+    try:
+        fee_cents = max(0, int(settings.get("membership_fee_cents", "1500")))
+    except ValueError:
+        fee_cents = 1500
+    try:
+        payment_url = validated_profile_url(settings.get("helloasso_membership_url", ""))
+    except ValueError:
+        payment_url = None
+    return current_school_year(), fee_cents, payment_url
+
+
+def parse_contribution_form(form):
+    school_year = form.get("school_year", "").strip()
+    match = re.fullmatch(r"(20\d{2})-(20\d{2})", school_year)
+    if not match or int(match.group(2)) != int(match.group(1)) + 1:
+        return None, "L’année scolaire doit être au format 2026-2027."
+    raw_amount = form.get("amount", "").strip().replace(",", ".")
+    try:
+        amount = Decimal(raw_amount)
+        if amount < 0:
+            raise InvalidOperation
+        amount_cents = int((amount * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    except (InvalidOperation, ValueError):
+        return None, "Le montant de la cotisation est invalide."
+    status = form.get("status", "due")
+    if status not in CONTRIBUTION_STATUSES:
+        return None, "Le statut de cotisation est invalide."
+
+    paid_at = None
+    raw_paid_at = form.get("paid_at", "").strip()
+    if status == "paid":
+        if raw_paid_at:
+            try:
+                paid_at = datetime.strptime(raw_paid_at, "%Y-%m-%dT%H:%M").replace(
+                    tzinfo=PARIS
+                ).isoformat()
+            except ValueError:
+                return None, "La date de paiement est invalide."
+        else:
+            paid_at = datetime.now(PARIS).isoformat(timespec="minutes")
+
+    payment_method = form.get("payment_method", "").strip()
+    external_reference = form.get("external_reference", "").strip()
+    notes = form.get("notes", "").strip()
+    if len(payment_method) > 80 or len(external_reference) > 120 or len(notes) > 1000:
+        return None, "Un des champs de suivi de la cotisation est trop long."
+    return {
+        "school_year": school_year,
+        "amount_cents": amount_cents,
+        "status": status,
+        "payment_method": payment_method or None,
+        "external_reference": external_reference or None,
+        "paid_at": paid_at,
+        "notes": notes,
+    }, None
 
 
 def load_secret_key():
@@ -262,6 +342,7 @@ def create_app():
             "site": database.site_settings(),
             "year": datetime.now(PARIS).year,
             "current_user": g.user,
+            "contribution_statuses": CONTRIBUTION_STATUSES,
         }
 
     def login_required(view):
@@ -327,13 +408,46 @@ def create_app():
     def home():
         return show_page("index")
 
+    @app.route("/register.html", methods=("GET", "POST"))
+    def register():
+        if g.user:
+            return redirect(url_for("account"))
+        if request.method == "POST":
+            username = request.form.get("username", "").strip()
+            email = request.form.get("email", "").strip().lower()
+            password = request.form.get("password", "")
+            confirmation = request.form.get("password_confirmation", "")
+            if len(username) < 3 or len(username) > 40:
+                flash("L’identifiant doit contenir entre 3 et 40 caractères.", "error")
+            elif not valid_email(email):
+                flash("Saisis une adresse e-mail valide.", "error")
+            elif len(password) < 8:
+                flash("Le mot de passe doit contenir au moins 8 caractères.", "error")
+            elif password != confirmation:
+                flash("Les deux mots de passe ne correspondent pas.", "error")
+            else:
+                user_id = database.create_user(
+                    username, generate_password_hash(password), "member", email=email
+                )
+                if not user_id:
+                    flash("Cet identifiant ou cette adresse e-mail est déjà utilisé.", "error")
+                else:
+                    school_year, fee_cents, _ = membership_configuration()
+                    database.create_contribution(user_id, school_year, fee_cents)
+                    session.clear()
+                    session["user_id"] = user_id
+                    csrf_token()
+                    flash("Ton compte a été créé. Bienvenue au BDE ORT Sup !", "success")
+                    return redirect(url_for("account"))
+        return render_template("register.html", page="register", title="Créer un compte")
+
     @app.route("/login.html", methods=("GET", "POST"))
     def login():
         if g.user:
             return redirect(url_for("account"))
         if request.method == "POST":
-            username = request.form.get("username", "").strip()
-            credentials = database.user_credentials(username)
+            identifier = request.form.get("username", "").strip()
+            credentials = database.user_credentials(identifier)
             password = request.form.get("password", "")
             if not credentials or not check_password_hash(credentials["password_hash"], password):
                 flash("Identifiant ou mot de passe incorrect.", "error")
@@ -357,6 +471,12 @@ def create_app():
     def account():
         created_event = None
         google_create_url = None
+        school_year, fee_cents, payment_url = membership_configuration()
+        database.ensure_contributions(school_year, fee_cents)
+        contributions = database.contributions_for_user(g.user["id"])
+        current_contribution = next(
+            (item for item in contributions if item["school_year"] == school_year), None
+        )
         event_id = request.args.get("event_created", type=int)
         if event_id and g.user["role"] in TEAM_ROLES:
             created_event = database.event_by_id(event_id)
@@ -365,6 +485,8 @@ def create_app():
         return render_template(
             "account.html", page="account", title="Mon espace",
             created_event=created_event, google_create_url=google_create_url,
+            contributions=contributions, current_contribution=current_contribution,
+            current_school_year=school_year, helloasso_membership_url=payment_url,
             bde_profile=database.bde_profile_for_user(g.user["id"])
             if g.user["role"] in TEAM_ROLES else None,
         )
@@ -372,29 +494,44 @@ def create_app():
     @app.get("/admin.html")
     @admin_required
     def admin_panel():
+        school_year, fee_cents, _ = membership_configuration()
+        database.ensure_contributions(school_year, fee_cents)
+        active_tab = request.args.get("onglet", "accounts")
+        if active_tab not in ("accounts", "bde", "cotisations"):
+            active_tab = "accounts"
         return render_template(
             "admin.html", page="admin", title="Administration",
             users=database.users(), profiles=database.bde_profiles(visible_only=False),
+            contributions=database.contributions_with_users(),
+            current_school_year=school_year, default_membership_fee_cents=fee_cents,
+            active_admin_tab=active_tab,
         )
 
     @app.post("/admin/users/create")
     @admin_required
     def create_user():
         username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         role = request.form.get("role", "member")
         if len(username) < 3 or len(username) > 40:
             flash("L’identifiant doit contenir entre 3 et 40 caractères.", "error")
+        elif email and not valid_email(email):
+            flash("L’adresse e-mail est invalide.", "error")
         elif len(password) < 6:
             flash("Le mot de passe doit contenir au moins 6 caractères.", "error")
         elif role not in ("member", "bde", "admin"):
             flash("Le niveau d’autorité choisi est invalide.", "error")
         else:
-            user_id = database.create_user(username, generate_password_hash(password), role)
+            user_id = database.create_user(
+                username, generate_password_hash(password), role, email=email or None
+            )
             if user_id:
+                school_year, fee_cents, _ = membership_configuration()
+                database.create_contribution(user_id, school_year, fee_cents)
                 flash(f"Le compte {username} a été créé.", "success")
             else:
-                flash("Cet identifiant est déjà utilisé.", "error")
+                flash("Cet identifiant ou cette adresse e-mail est déjà utilisé.", "error")
         return redirect(url_for("admin_panel"))
 
     @app.post("/admin/users/<int:user_id>/role")
@@ -406,6 +543,54 @@ def create_app():
         else:
             flash("Ce compte est protégé ou le niveau demandé est invalide.", "error")
         return redirect(url_for("admin_panel"))
+
+    def contribution_for_admin(contribution_id):
+        contribution = database.contribution_by_id(contribution_id)
+        if not contribution:
+            return None
+        if contribution["account_is_protected"] and g.user["role"] != "superadmin":
+            return None
+        return contribution
+
+    @app.post("/admin/contributions/create")
+    @admin_required
+    def create_contribution():
+        user_id = request.form.get("user_id", type=int)
+        user = database.user_by_id(user_id) if user_id else None
+        if not user or (user["is_protected"] and g.user["role"] != "superadmin"):
+            flash("Ce compte est introuvable ou protégé.", "error")
+            return redirect(url_for("admin_panel", onglet="cotisations"))
+        data, error = parse_contribution_form(request.form)
+        if error:
+            flash(error, "error")
+        else:
+            contribution_id = database.create_contribution(
+                user_id, data["school_year"], data["amount_cents"], data["status"]
+            )
+            if contribution_id:
+                database.update_contribution(contribution_id, data)
+                flash("La cotisation a été ajoutée.", "success")
+            else:
+                flash("Une cotisation existe déjà pour ce compte et cette année.", "error")
+        return redirect(url_for("admin_panel", onglet="cotisations"))
+
+    @app.post("/admin/contributions/<int:contribution_id>/update")
+    @admin_required
+    def update_contribution(contribution_id):
+        contribution = contribution_for_admin(contribution_id)
+        if not contribution:
+            flash("Cette cotisation est introuvable ou protégée.", "error")
+            return redirect(url_for("admin_panel", onglet="cotisations"))
+        data, error = parse_contribution_form(request.form)
+        if error:
+            flash(error, "error")
+        else:
+            updated = database.update_contribution(contribution_id, data)
+            if updated:
+                flash("La cotisation a été mise à jour.", "success")
+            else:
+                flash("Cette année existe déjà pour ce compte.", "error")
+        return redirect(url_for("admin_panel", onglet="cotisations"))
 
     @app.post("/admin/events/create")
     @team_member_required
