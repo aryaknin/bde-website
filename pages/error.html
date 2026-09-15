@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="section login-section">
+    <div class="container">
+      <div class="card login-card">
+        <p class="eyebrow">Impossible de continuer</p>
+        <h1>{{ heading }}</h1>
+        <p>{{ message }}</p>
+        <a class="button button-primary" href="{{ url_for('account') if current_user else url_for('home') }}">Revenir au site</a>
+      </div>
+    </div>
+  </section>
+{% endblock %}

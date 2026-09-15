@@ -116,6 +116,67 @@
     }
   }
 
+  document.querySelectorAll("[data-member-trigger]").forEach((trigger) => {
+    const dialog = document.getElementById(trigger.getAttribute("aria-controls"));
+    if (!dialog || typeof dialog.showModal !== "function") return;
+    trigger.addEventListener("click", () => {
+      dialog.showModal();
+      document.body.classList.add("dialog-open");
+    });
+    dialog.querySelector("[data-member-close]").addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (event) => {
+      const rect = dialog.getBoundingClientRect();
+      const outside = event.clientX < rect.left || event.clientX > rect.right
+        || event.clientY < rect.top || event.clientY > rect.bottom;
+      if (event.target === dialog && outside) dialog.close();
+    });
+    dialog.addEventListener("close", () => {
+      document.body.classList.remove("dialog-open");
+      trigger.focus({ preventScroll: true });
+    });
+  });
+
+  const teamFilter = document.querySelector("[data-team-filter]");
+  const teamCards = [...document.querySelectorAll("[data-team-card]")];
+  const teamCount = document.querySelector("[data-team-count]");
+  const teamLabel = document.querySelector("[data-team-label]");
+  if (teamFilter && teamCards.length) {
+    teamFilter.addEventListener("change", () => {
+      const selectedRole = teamFilter.value;
+      let visibleCount = 0;
+      teamCards.forEach((card) => {
+        const visible = !selectedRole || card.dataset.teamRole === selectedRole;
+        card.hidden = !visible;
+        if (visible) visibleCount += 1;
+      });
+      if (teamCount) teamCount.textContent = String(visibleCount);
+      if (teamLabel) teamLabel.textContent = visibleCount === 1 ? "membre" : "membres";
+    });
+  }
+
+  const adminTabs = [...document.querySelectorAll("[data-admin-tab]")];
+  const adminPanels = [...document.querySelectorAll("[data-admin-panel]")];
+  if (adminTabs.length && adminPanels.length) {
+    const activateAdminTab = (name, updateUrl = false) => {
+      adminTabs.forEach((tabButton) => {
+        const active = tabButton.dataset.adminTab === name;
+        tabButton.setAttribute("aria-selected", String(active));
+        tabButton.tabIndex = active ? 0 : -1;
+      });
+      adminPanels.forEach((panel) => { panel.hidden = panel.dataset.adminPanel !== name; });
+      if (updateUrl) {
+        const url = new URL(window.location.href);
+        name === "accounts" ? url.searchParams.delete("onglet") : url.searchParams.set("onglet", name);
+        window.history.replaceState({}, "", url);
+      }
+    };
+    adminTabs.forEach((tabButton) => {
+      tabButton.addEventListener("click", () => activateAdminTab(tabButton.dataset.adminTab, true));
+    });
+    const requestedTab = new URLSearchParams(window.location.search).get("onglet");
+    activateAdminTab(requestedTab === "bde" ? "bde" : "accounts");
+  }
+
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (!reducedMotion) {
     window.addEventListener("pageshow", () => document.body.classList.remove("page-leaving"));

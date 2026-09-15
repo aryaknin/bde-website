@@ -88,12 +88,51 @@ def initialise_database():
                 username TEXT NOT NULL COLLATE NOCASE UNIQUE,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'member'
-                    CHECK (role IN ('member', 'admin', 'superadmin')),
+                    CHECK (role IN ('member', 'bde', 'admin', 'superadmin')),
                 is_protected INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
+        """)
+        user_table = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
+        ).fetchone()
+        if user_table and "'bde'" not in user_table["sql"]:
+            db.executescript("""
+                DROP INDEX IF EXISTS one_superadmin_only;
+                ALTER TABLE users RENAME TO users_before_bde_role;
+                CREATE TABLE users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'member'
+                        CHECK (role IN ('member', 'bde', 'admin', 'superadmin')),
+                    is_protected INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                INSERT INTO users (id, username, password_hash, role, is_protected, created_at)
+                    SELECT id, username, password_hash, role, is_protected, created_at
+                    FROM users_before_bde_role;
+                DROP TABLE users_before_bde_role;
+            """)
+        db.executescript("""
             CREATE UNIQUE INDEX IF NOT EXISTS one_superadmin_only
                 ON users(role) WHERE role = 'superadmin';
+            CREATE TABLE IF NOT EXISTS bde_profiles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE,
+                display_name TEXT NOT NULL,
+                team_role TEXT NOT NULL DEFAULT 'Membre du BDE',
+                bio TEXT NOT NULL DEFAULT '',
+                photo_path TEXT,
+                instagram_url TEXT,
+                linkedin_url TEXT,
+                website_url TEXT,
+                is_visible INTEGER NOT NULL DEFAULT 1,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
         """)
         # Migration légère pour les bases créées avant l'ajout du lien Google Agenda.
         event_columns = {
@@ -107,6 +146,15 @@ def initialise_database():
             "INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)",
             DEFAULT_SETTINGS.items(),
         )
+        db.execute("""
+            INSERT INTO bde_profiles (user_id, display_name, team_role, is_visible)
+            SELECT users.id, users.username, 'Membre du BDE', 1
+            FROM users
+            WHERE users.role IN ('bde', 'admin', 'superadmin')
+              AND NOT EXISTS (
+                  SELECT 1 FROM bde_profiles WHERE bde_profiles.user_id = users.id
+              )
+        """)
 
 
 def query(sql, parameters=(), booleans=()):
@@ -181,13 +229,13 @@ def users():
     return query("""
         SELECT id, username, role, is_protected, created_at
         FROM users
-        ORDER BY CASE role WHEN 'superadmin' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END,
+        ORDER BY CASE role WHEN 'superadmin' THEN 0 WHEN 'admin' THEN 1 WHEN 'bde' THEN 2 ELSE 3 END,
                  username COLLATE NOCASE
     """, booleans=("is_protected",))
 
 
 def create_user(username, password_hash, role="member", is_protected=False):
-    if role not in ("member", "admin", "superadmin"):
+    if role not in ("member", "bde", "admin", "superadmin"):
         raise ValueError("Rôle inconnu")
     try:
         with get_db() as db:
@@ -195,19 +243,117 @@ def create_user(username, password_hash, role="member", is_protected=False):
                 INSERT INTO users (username, password_hash, role, is_protected)
                 VALUES (?, ?, ?, ?)
             """, (username, password_hash, role, int(is_protected)))
+            if role in ("bde", "admin", "superadmin"):
+                db.execute("""
+                    INSERT INTO bde_profiles (user_id, display_name, team_role, is_visible)
+                    VALUES (?, ?, 'Membre du BDE', 1)
+                """, (cursor.lastrowid, username))
             return cursor.lastrowid
     except sqlite3.IntegrityError:
         return None
 
 
 def update_user_role(user_id, role):
-    if role not in ("member", "admin"):
+    if role not in ("member", "bde", "admin"):
         return False
     with get_db() as db:
         cursor = db.execute("""
             UPDATE users SET role = ?
             WHERE id = ? AND is_protected = 0 AND role != 'superadmin'
         """, (role, user_id))
+        if cursor.rowcount != 1:
+            return False
+        user = db.execute("SELECT username FROM users WHERE id = ?", (user_id,)).fetchone()
+        if role in ("bde", "admin"):
+            db.execute("""
+                INSERT INTO bde_profiles (user_id, display_name, team_role, is_visible)
+                VALUES (?, ?, 'Membre du BDE', 1)
+                ON CONFLICT(user_id) DO UPDATE SET is_visible = 1, updated_at = CURRENT_TIMESTAMP
+            """, (user_id, user["username"]))
+        else:
+            db.execute("""
+                UPDATE bde_profiles SET is_visible = 0, updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ?
+            """, (user_id,))
+        return True
+
+
+def bde_profiles(visible_only=True):
+    where = "WHERE bde_profiles.is_visible = 1" if visible_only else ""
+    return query(f"""
+        SELECT bde_profiles.*, users.username, users.role AS account_role
+        FROM bde_profiles LEFT JOIN users ON users.id = bde_profiles.user_id
+        {where}
+        ORDER BY bde_profiles.sort_order ASC, bde_profiles.display_name COLLATE NOCASE ASC
+    """, booleans=("is_visible",))
+
+
+def bde_profile_by_id(profile_id):
+    items = query("""
+        SELECT bde_profiles.*, users.username, users.role AS account_role
+        FROM bde_profiles LEFT JOIN users ON users.id = bde_profiles.user_id
+        WHERE bde_profiles.id = ?
+    """, (profile_id,), booleans=("is_visible",))
+    return items[0] if items else None
+
+
+def bde_profile_for_user(user_id):
+    items = query("""
+        SELECT bde_profiles.*, users.username, users.role AS account_role
+        FROM bde_profiles JOIN users ON users.id = bde_profiles.user_id
+        WHERE bde_profiles.user_id = ?
+    """, (user_id,), booleans=("is_visible",))
+    return items[0] if items else None
+
+
+def create_manual_bde_profile(data):
+    with get_db() as db:
+        cursor = db.execute("""
+            INSERT INTO bde_profiles (
+                display_name, team_role, bio, photo_path, instagram_url,
+                linkedin_url, website_url, is_visible, sort_order
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+        """, (
+            data["display_name"], data["team_role"], data["bio"], data["photo_path"],
+            data["instagram_url"], data["linkedin_url"], data["website_url"], data["sort_order"],
+        ))
+        return cursor.lastrowid
+
+
+def update_bde_profile(profile_id, data, include_team_fields=False):
+    assignments = [
+        "display_name = ?", "bio = ?", "photo_path = ?", "instagram_url = ?",
+        "linkedin_url = ?", "website_url = ?", "updated_at = CURRENT_TIMESTAMP",
+    ]
+    values = [
+        data["display_name"], data["bio"], data["photo_path"], data["instagram_url"],
+        data["linkedin_url"], data["website_url"],
+    ]
+    if include_team_fields:
+        assignments.extend(("team_role = ?", "sort_order = ?"))
+        values.extend((data["team_role"], data["sort_order"]))
+    values.append(profile_id)
+    with get_db() as db:
+        cursor = db.execute(
+            f"UPDATE bde_profiles SET {', '.join(assignments)} WHERE id = ?", values
+        )
+        return cursor.rowcount == 1
+
+
+def set_bde_profile_visibility(profile_id, visible):
+    with get_db() as db:
+        cursor = db.execute("""
+            UPDATE bde_profiles SET is_visible = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (int(visible), profile_id))
+        return cursor.rowcount == 1
+
+
+def delete_manual_bde_profile(profile_id):
+    with get_db() as db:
+        cursor = db.execute(
+            "DELETE FROM bde_profiles WHERE id = ? AND user_id IS NULL", (profile_id,)
+        )
         return cursor.rowcount == 1
 
 

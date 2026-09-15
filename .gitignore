@@ -1,6 +1,8 @@
 db/*.db
 db/*.db-*
 db/.session-secret
+static/uploads/members/*
+!static/uploads/members/.gitkeep
 .venv/
 __pycache__/
 *.py[cod]

@@ -10,6 +10,8 @@
           Superadministrateur protégé
         {% elif current_user.role == 'admin' %}
           Compte administrateur
+        {% elif current_user.role == 'bde' %}
+          Membre du BDE
         {% else %}
           Compte membre
         {% endif %}
@@ -37,7 +39,7 @@
           <p class="eyebrow">Mon compte</p>
           <h2>{{ current_user.username }}</h2>
           <p>Ton niveau d’autorité est <strong>
-            {% if current_user.role == 'superadmin' %}superadministrateur{% elif current_user.role == 'admin' %}administrateur{% else %}membre{% endif %}
+            {% if current_user.role == 'superadmin' %}superadministrateur{% elif current_user.role == 'admin' %}administrateur{% elif current_user.role == 'bde' %}membre du BDE{% else %}membre{% endif %}
           </strong>.</p>
           <form method="post" action="{{ url_for('logout') }}">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -45,18 +47,67 @@
           </form>
         </article>
 
-        {% if current_user.role in ('admin', 'superadmin') %}
+        {% if current_user.role in ('bde', 'admin', 'superadmin') %}
           <article class="dashboard-card dashboard-card--accent">
-            <p class="eyebrow">Outils administrateur</p>
-            <h2>Gérer le site</h2>
-            <p>Ajoute des événements et administre les comptes autorisés.</p>
+            <p class="eyebrow">Outils BDE</p>
+            <h2>Participer au site</h2>
+            <p>Ajoute des événements et mets à jour ta présentation publique.</p>
             <div class="dashboard-actions">
               <a class="button button-primary" href="{{ url_for('public_page', page='evenements', ajouter=1) }}#ajouter-evenement">Ajouter un événement</a>
-              <a class="button button-secondary" href="{{ url_for('admin_panel') }}">Gérer les comptes</a>
+              {% if current_user.role in ('admin', 'superadmin') %}
+                <a class="button button-secondary" href="{{ url_for('admin_panel') }}">Administration</a>
+              {% endif %}
             </div>
           </article>
         {% endif %}
       </div>
+
+      {% if bde_profile %}
+        <article class="profile-editor" id="mon-profil-bde">
+          <div class="profile-editor__heading">
+            <div>
+              <p class="eyebrow">Page BDE</p>
+              <h2>Ma présentation publique</h2>
+              <p>Ton rôle affiché est <strong>{{ bde_profile.team_role }}</strong>. Un administrateur peut le modifier.</p>
+            </div>
+            {% if bde_profile.photo_path %}
+              <img src="{{ url_for('static', filename=bde_profile.photo_path) }}" alt="Photo actuelle de {{ bde_profile.display_name }}">
+            {% else %}
+              <span class="profile-avatar" aria-hidden="true">{{ bde_profile.display_name[:1] | upper }}</span>
+            {% endif %}
+          </div>
+          <form class="profile-form" method="post" action="{{ url_for('update_own_profile') }}" enctype="multipart/form-data">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <label class="form-field">
+              <span>Nom affiché</span>
+              <input name="display_name" maxlength="100" value="{{ bde_profile.display_name }}" required>
+            </label>
+            <label class="form-field">
+              <span>Photo <small>JPEG, PNG ou WebP — 8 Mo maximum</small></span>
+              <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+            </label>
+            <label class="form-field form-field--wide">
+              <span>Biographie</span>
+              <textarea name="bio" rows="5" maxlength="1500" placeholder="Présente ton parcours et ton rôle au sein du BDE.">{{ bde_profile.bio }}</textarea>
+            </label>
+            <label class="form-field">
+              <span>Instagram</span>
+              <input type="url" name="instagram_url" value="{{ bde_profile.instagram_url or '' }}" placeholder="https://instagram.com/…">
+            </label>
+            <label class="form-field">
+              <span>LinkedIn</span>
+              <input type="url" name="linkedin_url" value="{{ bde_profile.linkedin_url or '' }}" placeholder="https://linkedin.com/in/…">
+            </label>
+            <label class="form-field form-field--wide">
+              <span>Site personnel</span>
+              <input type="url" name="website_url" value="{{ bde_profile.website_url or '' }}" placeholder="https://…">
+            </label>
+            <div class="form-field--wide">
+              <button class="button button-primary" type="submit">Enregistrer mon profil</button>
+            </div>
+          </form>
+        </article>
+      {% endif %}
     </div>
   </section>
 {% endblock %}

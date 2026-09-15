@@ -3,13 +3,16 @@
 import re
 import tempfile
 import unittest
+from io import BytesIO
 from html.parser import HTMLParser
 from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import urljoin, urlsplit
 
+from PIL import Image
 from werkzeug.security import generate_password_hash
 
+from backend import app as app_module
 from backend import database
 from backend.app import PAGES, create_app
 from backend.seed import seed_database
@@ -35,6 +38,11 @@ class SiteTests(unittest.TestCase):
         )
         self.database_patch.start()
         self.addCleanup(self.database_patch.stop)
+        self.upload_patch = patch.object(
+            app_module, "UPLOAD_FOLDER", Path(self.folder.name) / "member-uploads"
+        )
+        self.upload_patch.start()
+        self.addCleanup(self.upload_patch.stop)
         self.app = create_app()
         self.app.config["TESTING"] = True
         self.client = self.app.test_client()
@@ -61,6 +69,13 @@ class SiteTests(unittest.TestCase):
             "/login.html",
             data={"_csrf_token": token, "username": username, "password": password},
         )
+
+    @staticmethod
+    def sample_image():
+        image = BytesIO()
+        Image.new("RGB", (120, 160), "#07558c").save(image, "PNG")
+        image.seek(0)
+        return image
 
     def test_public_pages_and_local_resources(self):
         urls = set()
@@ -187,6 +202,129 @@ class SiteTests(unittest.TestCase):
             data={"_csrf_token": token, "role": "member"},
         )
         self.assertEqual(database.user_by_id(self.super_id)["role"], "superadmin")
+
+        response = client.post("/admin/users/create", data={
+            "_csrf_token": token,
+            "username": "CompteBDE",
+            "password": "equipe123",
+            "role": "bde",
+        })
+        self.assertEqual(response.status_code, 302)
+        bde_user = database.user_credentials("CompteBDE")
+        self.assertEqual(bde_user["role"], "bde")
+        self.assertTrue(database.bde_profile_for_user(bde_user["id"])["is_visible"])
+
+    def test_bde_role_can_create_events_but_not_manage_accounts(self):
+        bde_id = database.create_user(
+            "EquipeBDE", generate_password_hash("equipe-test"), "bde"
+        )
+        self.assertIsNotNone(bde_id)
+        profile = database.bde_profile_for_user(bde_id)
+        self.assertTrue(profile["is_visible"])
+
+        client = self.app.test_client()
+        self.login_as(client, "EquipeBDE", "equipe-test")
+        self.assertTrue(client.get("/admin.html").location.endswith("/compte.html"))
+        events_html = client.get("/evenements.html").get_data(as_text=True)
+        self.assertIn("data-admin-event-open", events_html)
+        token = self.csrf_token(client, "/evenements.html")
+        response = client.post("/admin/events/create", data={
+            "_csrf_token": token,
+            "title": "Événement créé par le BDE",
+            "description": "Un événement de test.",
+            "start_date": "2027-01-12",
+            "start_time": "18:00",
+            "end_date": "",
+            "end_time": "",
+            "location": "ORT Montreuil",
+            "organizer_name": "",
+            "price": "0",
+            "capacity": "",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(database.events()[-1]["title"], "Événement créé par le BDE")
+
+    def test_role_changes_control_default_bde_profile_visibility(self):
+        self.assertIsNone(database.bde_profile_for_user(self.member_id))
+        self.assertTrue(database.update_user_role(self.member_id, "bde"))
+        profile = database.bde_profile_for_user(self.member_id)
+        self.assertTrue(profile["is_visible"])
+        self.assertIn("MembreTest", self.client.get("/bde.html").get_data(as_text=True))
+        self.assertTrue(database.update_user_role(self.member_id, "member"))
+        self.assertFalse(database.bde_profile_for_user(self.member_id)["is_visible"])
+        self.assertNotIn("MembreTest", self.client.get("/bde.html").get_data(as_text=True))
+
+    def test_bde_member_can_upload_and_edit_public_profile(self):
+        bde_id = database.create_user(
+            "ProfilBDE", generate_password_hash("profil-test"), "bde"
+        )
+        client = self.app.test_client()
+        self.login_as(client, "ProfilBDE", "profil-test")
+        token = self.csrf_token(client, "/compte.html")
+        response = client.post(
+            "/compte/profil",
+            data={
+                "_csrf_token": token,
+                "display_name": "Camille Martin",
+                "bio": "Une courte biographie publique.",
+                "instagram_url": "https://instagram.com/camille",
+                "linkedin_url": "",
+                "website_url": "https://example.com",
+                "photo": (self.sample_image(), "portrait.png"),
+            },
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(response.status_code, 302)
+        profile = database.bde_profile_for_user(bde_id)
+        self.assertEqual(profile["display_name"], "Camille Martin")
+        self.assertTrue(profile["photo_path"].endswith(".webp"))
+        filename = Path(profile["photo_path"]).name
+        self.assertTrue((app_module.UPLOAD_FOLDER / filename).is_file())
+        page = client.get("/bde.html").get_data(as_text=True)
+        self.assertIn("Camille Martin", page)
+        self.assertIn("Une courte biographie publique.", page)
+        self.assertIn("data-member-trigger", page)
+
+    def test_admin_can_manage_manual_bde_profiles(self):
+        client = self.app.test_client()
+        self.login_as(client, "AdminTest", "admin123")
+        token = self.csrf_token(client, "/admin.html?onglet=bde")
+        protected_profile = database.bde_profile_for_user(self.super_id)
+        client.post(
+            f"/admin/profiles/{protected_profile['id']}/visibility",
+            data={"_csrf_token": token, "visible": "0"},
+        )
+        self.assertTrue(database.bde_profile_for_user(self.super_id)["is_visible"])
+        response = client.post(
+            "/admin/profiles/create",
+            data={
+                "_csrf_token": token,
+                "display_name": "Alex Dupont",
+                "team_role": "Trésorier",
+                "bio": "Gestion du budget et des projets.",
+                "sort_order": "2",
+                "instagram_url": "",
+                "linkedin_url": "https://linkedin.com/in/alex",
+                "website_url": "",
+                "photo": (self.sample_image(), "alex.png"),
+            },
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(response.status_code, 302)
+        profile = next(p for p in database.bde_profiles(False) if p["display_name"] == "Alex Dupont")
+        self.assertIsNone(profile["user_id"])
+        self.assertIn("Trésorier", self.client.get("/bde.html").get_data(as_text=True))
+
+        client.post(
+            f"/admin/profiles/{profile['id']}/visibility",
+            data={"_csrf_token": token, "visible": "0"},
+        )
+        self.assertNotIn("Alex Dupont", self.client.get("/bde.html").get_data(as_text=True))
+        client.post(
+            f"/admin/profiles/{profile['id']}/delete",
+            data={"_csrf_token": token},
+        )
+        self.assertIsNone(database.bde_profile_by_id(profile["id"]))
 
     def test_member_cannot_open_admin_panel_or_create_event(self):
         client = self.app.test_client()

@@ -16,8 +16,10 @@ Adresse du campus : **43 Rue Raspail, 93100 Montreuil**.
 - Événements et boutique alimentés par SQLite.
 - Cartes d’événements ouvrant une fiche détaillée avec un accès au calendrier.
 - Thème bleu ORT, logos et polices servis localement.
-- Connexion par session, comptes membres, administrateurs et superadministrateur protégé.
-- Création de comptes, gestion des droits et ajout d’événements depuis l’interface admin.
+- Connexion par session, comptes membres, membres du BDE, administrateurs et superadministrateur protégé.
+- Création de comptes et gestion des droits depuis l’administration ; ajout d’événements par l’équipe BDE.
+- Annuaire public du BDE avec portraits, fonctions, biographies, liens et fiches détaillées.
+- Modification de son profil public depuis l’espace personnel et gestion complète depuis l’administration.
 - Préparation d’un événement Google Agenda à partir d’un événement créé sur le site.
 - API JSON conservée pour les prochaines fonctionnalités.
 
@@ -33,7 +35,8 @@ est conservée comme visuel provisoire.
 
 ## Installation locale
 
-Prérequis : Python 3.10 ou supérieur, pip et un navigateur.
+Prérequis : Python 3.10 ou supérieur, pip et un navigateur. Pillow est installé avec les
+dépendances pour valider et convertir les portraits envoyés.
 
 Depuis le dossier `bde-website` :
 
@@ -95,13 +98,15 @@ bde-website/
 │   ├── login.html
 │   ├── account.html
 │   ├── admin.html
+│   ├── error.html
 │   ├── demande-domaine.html
 │   └── 404.html
 ├── static/
 │   ├── css/site.css           # Styles, thème et responsive
 │   ├── js/site.js             # Navigation et fenêtres de dialogue
-│   ├── fonts/                # Inter et Bricolage Grotesque, variantes latines
-│   └── images/               # Deux logos ORT et la photo d’accueil
+│   ├── fonts/                 # Inter et Bricolage Grotesque, variantes latines
+│   ├── images/                # Deux logos ORT et la photo d’accueil
+│   └── uploads/members/       # Portraits convertis en WebP, ignorés par Git
 ├── tests/test_site.py         # Vérifications sur une base temporaire
 ├── .gitignore
 └── README.md
@@ -144,6 +149,7 @@ Le fichier est `db/bde-ort-sup.db`. Il contient :
 | `events` | Événements, horaires, lieux, organisateur facultatif, capacités, prix et lien Google |
 | `products` | Articles, descriptions, stocks et prix |
 | `users` | Identifiants, hash des mots de passe, rôles et protection du supercompte |
+| `bde_profiles` | Profils publics, fonctions, biographies, liens, photos, ordre et visibilité |
 
 Les prix sont enregistrés en centimes. Les dates sont au format ISO 8601 avec
 décalage horaire, puis affichées en français dans le fuseau Europe/Paris.
@@ -176,21 +182,32 @@ Google Agenda pour ouvrir exactement l’événement correspondant. Sans ce lien
 la page Calendrier lance une recherche Google Agenda à partir du titre enregistré dans SQLite.
 Le contenu de l’iframe Google est isolé du site : le navigateur ne permet pas au JavaScript
 local de sélectionner automatiquement un événement à l’intérieur de cette iframe.
-Après la création d’un événement par un administrateur, le site fournit également un lien
-Google Agenda prérempli. L’administrateur doit confirmer sa création dans Google. Une écriture
+Après la création d’un événement par un administrateur ou un membre du BDE, le site fournit
+également un lien Google Agenda prérempli. La personne doit confirmer sa création dans Google. Une écriture
 automatique nécessitera ultérieurement Google Calendar API, OAuth et des identifiants dédiés.
 
 ## Comptes et autorisations
 
-Trois niveaux sont disponibles :
+Quatre niveaux sont disponibles :
 
 - `member` : accès à l’espace personnel ;
+- `bde` : profil public modifiable et création d’événements, sans gestion des comptes ;
 - `admin` : création d’événements, création de comptes et modification des rôles ;
 - `superadmin` : mêmes droits, compte protégé contre toute modification depuis l’administration.
 
-Les administrateurs peuvent promouvoir un compte en administrateur ou le repasser membre.
+Les administrateurs peuvent attribuer les rôles membre, membre du BDE ou administrateur.
 Ils ne peuvent ni modifier ni rétrograder le superadministrateur protégé. Les mots de passe
 sont hashés par Werkzeug et ne sont jamais affichés dans l’administration.
+
+Les comptes `bde`, `admin` et `superadmin` obtiennent automatiquement un profil sur la page
+BDE. Un administrateur peut le masquer, modifier sa fonction et son ordre, ou créer un profil
+manuel sans compte. Un profil lié à un compte se masque au lieu d’être supprimé. Un
+administrateur ordinaire ne peut pas modifier le profil du supercompte protégé.
+
+Depuis son espace, chaque personne de l’équipe peut modifier son nom public, sa biographie,
+ses liens et son portrait. Les images JPEG, PNG et WebP de moins de 8 Mo sont recadrées au
+format portrait et converties en WebP côté serveur. Les fichiers d’upload sont exclus de Git :
+ils devront être sauvegardés séparément et placés sur un stockage persistant en production.
 
 Pour créer le premier supercompte dans une nouvelle base :
 
@@ -240,8 +257,8 @@ python3 -B -m unittest discover -s tests -v
 
 Ces vérifications utilisent une base SQLite temporaire ; elles ne modifient pas la base locale.
 Elles contrôlent les pages et ressources, les données rendues dans le HTML, l’échappement,
-les filtres de l’API, la connexion, les rôles, la protection du supercompte, les jetons CSRF
-et la création d’événements.
+les filtres de l’API, la connexion, les quatre rôles, la protection du supercompte, les jetons
+CSRF, la création d’événements, les profils publics et la validation des portraits.
 
 ## Nettoyage effectué
 
@@ -261,7 +278,7 @@ informations. Aucun ancien document n’est présenté comme un document ORT.
 ## Suite du développement
 
 1. Renseigner les vrais textes, images, contacts et chiffres.
-2. Développer les fiches des membres et les inscriptions aux événements.
+2. Renseigner les fonctions, biographies, liens et véritables portraits des membres du BDE.
 3. Configurer OAuth si la création automatique dans Google Agenda devient nécessaire.
 4. Construire les inscriptions, commandes et paiements selon les besoins.
 5. Choisir la base et l’hébergement de production, puis préparer le déploiement.

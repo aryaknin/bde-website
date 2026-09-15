@@ -4,68 +4,155 @@
   <section class="page-hero page-hero--compact">
     <div class="container">
       <p class="eyebrow">Administration</p>
-      <h1>Gestion des comptes</h1>
-      <p>Crée les accès et choisis qui peut administrer le site.</p>
+      <h1>Gestion du site</h1>
+      <p>Gère les comptes et les personnes présentées sur la page BDE.</p>
     </div>
   </section>
 
   <section class="section admin-section">
-    <div class="container admin-layout">
-      <article class="admin-panel">
-        <p class="eyebrow">Nouveau compte</p>
-        <h2>Ajouter un utilisateur</h2>
-        <form class="form-stack" method="post" action="{{ url_for('create_user') }}">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-          <label>
-            <span>Identifiant</span>
-            <input name="username" minlength="3" maxlength="40" autocomplete="off" required>
-          </label>
-          <label>
-            <span>Mot de passe provisoire</span>
-            <input type="password" name="password" minlength="6" autocomplete="new-password" required>
-          </label>
-          <label>
-            <span>Niveau d’autorité</span>
-            <select name="role">
-              <option value="member">Membre</option>
-              <option value="admin">Administrateur</option>
-            </select>
-          </label>
-          <button class="button button-primary" type="submit">Créer le compte</button>
-        </form>
-      </article>
+    <div class="container">
+      <div class="admin-tabs" role="tablist" aria-label="Sections d’administration">
+        <button type="button" role="tab" aria-selected="true" aria-controls="admin-accounts" data-admin-tab="accounts">Comptes</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="admin-bde" data-admin-tab="bde">Page BDE</button>
+      </div>
 
-      <article class="admin-panel admin-panel--wide">
-        <p class="eyebrow">Comptes existants</p>
-        <h2>Autorisations</h2>
-        <div class="user-list">
-          {% for user in users %}
-            <div class="user-row">
-              <div>
-                <strong>{{ user.username }}</strong>
-                <span>
-                  {% if user.role == 'superadmin' %}Superadministrateur{% elif user.role == 'admin' %}Administrateur{% else %}Membre{% endif %}
-                </span>
-              </div>
-              {% if user.is_protected or user.role == 'superadmin' %}
-                <span class="protected-badge">Compte protégé</span>
-              {% else %}
-                <form method="post" action="{{ url_for('update_user_role', user_id=user.id) }}">
-                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                  <label class="sr-only" for="role-{{ user.id }}">Rôle de {{ user.username }}</label>
-                  <select id="role-{{ user.id }}" name="role">
-                    <option value="member" {% if user.role == 'member' %}selected{% endif %}>Membre</option>
-                    <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Administrateur</option>
-                  </select>
-                  <button class="button button-secondary" type="submit">Enregistrer</button>
-                </form>
-              {% endif %}
+      <div id="admin-accounts" role="tabpanel" data-admin-panel="accounts">
+        <div class="admin-layout">
+          <article class="admin-panel">
+            <p class="eyebrow">Nouveau compte</p>
+            <h2>Ajouter un utilisateur</h2>
+            <form class="form-stack" method="post" action="{{ url_for('create_user') }}">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <label>
+                <span>Identifiant</span>
+                <input name="username" minlength="3" maxlength="40" autocomplete="off" required>
+              </label>
+              <label>
+                <span>Mot de passe provisoire</span>
+                <input type="password" name="password" minlength="6" autocomplete="new-password" required>
+              </label>
+              <label>
+                <span>Niveau d’autorité</span>
+                <select name="role">
+                  <option value="member">Membre</option>
+                  <option value="bde">Membre du BDE</option>
+                  <option value="admin">Administrateur</option>
+                </select>
+              </label>
+              <button class="button button-primary" type="submit">Créer le compte</button>
+            </form>
+          </article>
+
+          <article class="admin-panel admin-panel--wide">
+            <p class="eyebrow">Comptes existants</p>
+            <h2>Autorisations</h2>
+            <div class="user-list">
+              {% for user in users %}
+                <div class="user-row">
+                  <div>
+                    <strong>{{ user.username }}</strong>
+                    <span>
+                      {% if user.role == 'superadmin' %}Superadministrateur{% elif user.role == 'admin' %}Administrateur{% elif user.role == 'bde' %}Membre du BDE{% else %}Membre{% endif %}
+                    </span>
+                  </div>
+                  {% if user.is_protected or user.role == 'superadmin' %}
+                    <span class="protected-badge">Compte protégé</span>
+                  {% else %}
+                    <form method="post" action="{{ url_for('update_user_role', user_id=user.id) }}">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <label class="sr-only" for="role-{{ user.id }}">Rôle de {{ user.username }}</label>
+                      <select id="role-{{ user.id }}" name="role">
+                        <option value="member" {% if user.role == 'member' %}selected{% endif %}>Membre</option>
+                        <option value="bde" {% if user.role == 'bde' %}selected{% endif %}>Membre du BDE</option>
+                        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Administrateur</option>
+                      </select>
+                      <button class="button button-secondary" type="submit">Enregistrer</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% endfor %}
             </div>
-          {% else %}
-            <p class="empty-state">Aucun compte n’existe encore.</p>
-          {% endfor %}
+          </article>
         </div>
-      </article>
+      </div>
+
+      <div id="admin-bde" role="tabpanel" data-admin-panel="bde" hidden>
+        <div class="admin-bde-layout">
+          <article class="admin-panel">
+            <p class="eyebrow">Profil sans compte</p>
+            <h2>Ajouter une personne</h2>
+            <form class="profile-admin-form" method="post" action="{{ url_for('create_bde_profile') }}" enctype="multipart/form-data">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <label class="form-field"><span>Nom affiché</span><input name="display_name" maxlength="100" required></label>
+              <label class="form-field"><span>Rôle dans le BDE</span><input name="team_role" maxlength="100" placeholder="Président, trésorier…" required></label>
+              <label class="form-field"><span>Photo</span><input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></label>
+              <label class="form-field"><span>Ordre d’affichage</span><input type="number" name="sort_order" value="0" step="1"></label>
+              <label class="form-field form-field--wide"><span>Biographie</span><textarea name="bio" maxlength="1500" rows="4"></textarea></label>
+              <label class="form-field"><span>Instagram</span><input type="url" name="instagram_url" placeholder="https://…"></label>
+              <label class="form-field"><span>LinkedIn</span><input type="url" name="linkedin_url" placeholder="https://…"></label>
+              <label class="form-field form-field--wide"><span>Site personnel</span><input type="url" name="website_url" placeholder="https://…"></label>
+              <div class="form-field--wide"><button class="button button-primary" type="submit">Ajouter à la page BDE</button></div>
+            </form>
+          </article>
+
+          <div class="profile-admin-list">
+            {% for profile in profiles %}
+              {% set protected_profile = profile.account_role == 'superadmin' and current_user.role != 'superadmin' %}
+              <article class="profile-admin-row">
+                <div class="profile-admin-summary">
+                  {% if profile.photo_path %}
+                    <img src="{{ url_for('static', filename=profile.photo_path) }}" alt="">
+                  {% else %}
+                    <span class="profile-avatar" aria-hidden="true">{{ profile.display_name[:1] | upper }}</span>
+                  {% endif %}
+                  <div>
+                    <strong>{{ profile.display_name }}</strong>
+                    <span>{{ profile.team_role }}{% if profile.username %} · compte {{ profile.username }}{% endif %}</span>
+                  </div>
+                  <span class="visibility-badge {{ 'is-hidden-profile' if not profile.is_visible else '' }}">
+                    {{ 'Visible' if profile.is_visible else 'Masqué' }}
+                  </span>
+                </div>
+
+                {% if protected_profile %}
+                  <p class="protected-note">Ce profil appartient au supercompte protégé.</p>
+                {% else %}
+                  <div class="profile-admin-actions">
+                    <form method="post" action="{{ url_for('set_bde_profile_visibility', profile_id=profile.id) }}">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="visible" value="{{ 0 if profile.is_visible else 1 }}">
+                      <button class="button button-secondary" type="submit">{{ 'Masquer' if profile.is_visible else 'Afficher' }}</button>
+                    </form>
+                    {% if profile.user_id is none %}
+                      <form method="post" action="{{ url_for('delete_bde_profile', profile_id=profile.id) }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <button class="button button-danger" type="submit">Supprimer</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                  <details class="profile-edit-details">
+                    <summary>Modifier la fiche</summary>
+                    <form class="profile-admin-form" method="post" action="{{ url_for('update_bde_profile', profile_id=profile.id) }}" enctype="multipart/form-data">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <label class="form-field"><span>Nom affiché</span><input name="display_name" maxlength="100" value="{{ profile.display_name }}" required></label>
+                      <label class="form-field"><span>Rôle dans le BDE</span><input name="team_role" maxlength="100" value="{{ profile.team_role }}" required></label>
+                      <label class="form-field"><span>Nouvelle photo</span><input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></label>
+                      <label class="form-field"><span>Ordre</span><input type="number" name="sort_order" value="{{ profile.sort_order }}" step="1"></label>
+                      <label class="form-field form-field--wide"><span>Biographie</span><textarea name="bio" maxlength="1500" rows="4">{{ profile.bio }}</textarea></label>
+                      <label class="form-field"><span>Instagram</span><input type="url" name="instagram_url" value="{{ profile.instagram_url or '' }}"></label>
+                      <label class="form-field"><span>LinkedIn</span><input type="url" name="linkedin_url" value="{{ profile.linkedin_url or '' }}"></label>
+                      <label class="form-field form-field--wide"><span>Site personnel</span><input type="url" name="website_url" value="{{ profile.website_url or '' }}"></label>
+                      <div class="form-field--wide"><button class="button button-primary" type="submit">Enregistrer la fiche</button></div>
+                    </form>
+                  </details>
+                {% endif %}
+              </article>
+            {% else %}
+              <p class="empty-state">Aucun profil BDE n’existe encore.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 {% endblock %}

@@ -10,7 +10,7 @@
   </section>
   <section class="section" aria-label="Les événements">
     <div class="container">
-      {% if current_user and current_user.role in ('admin', 'superadmin') %}
+      {% if current_user and current_user.role in ('bde', 'admin', 'superadmin') %}
         <div class="section-heading section-heading--tools">
           <div>
             <p class="eyebrow">Outils administrateur</p>
@@ -27,7 +27,7 @@
 {% endblock %}
 
 {% block dialogs %}
-  {% if current_user and current_user.role in ('admin', 'superadmin') %}
+  {% if current_user and current_user.role in ('bde', 'admin', 'superadmin') %}
     {% include "partials/event-form.html" %}
   {% endif %}
 {% endblock %}

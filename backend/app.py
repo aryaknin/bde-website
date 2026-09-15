@@ -5,8 +5,11 @@ import secrets
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
-from urllib.parse import quote_plus, urlencode
+from urllib.parse import quote_plus, urlencode, urlsplit
+from uuid import uuid4
 from zoneinfo import ZoneInfo
+
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from flask import (
     Flask,
@@ -42,6 +45,9 @@ PAGES = {
     "login": "Connexion",
     "demande-domaine": "Projet étudiant",
 }
+TEAM_ROLES = ("bde", "admin", "superadmin")
+UPLOAD_FOLDER = database.PROJECT_DIR / "static" / "uploads" / "members"
+Image.MAX_IMAGE_PIXELS = 25_000_000
 
 
 def parse_date(value):
@@ -149,6 +155,70 @@ def google_event_creation_url(event):
     return f"https://calendar.google.com/calendar/render?{urlencode(parameters)}"
 
 
+def validated_profile_url(value):
+    value = value.strip()
+    if not value:
+        return None
+    parsed = urlsplit(value)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise ValueError("Les liens personnels doivent être des adresses http:// ou https:// valides.")
+    return value
+
+
+def save_profile_photo(upload):
+    if not upload or not upload.filename:
+        return None
+    try:
+        image = Image.open(upload.stream)
+        if image.format not in ("JPEG", "PNG", "WEBP"):
+            raise ValueError("Format non pris en charge")
+        image = ImageOps.exif_transpose(image).convert("RGB")
+        image = ImageOps.fit(image, (800, 1000), method=Image.Resampling.LANCZOS)
+        UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+        filename = f"{uuid4().hex}.webp"
+        image.save(UPLOAD_FOLDER / filename, "WEBP", quality=86, method=6)
+        return f"uploads/members/{filename}"
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as error:
+        raise ValueError("La photo doit être une image JPEG, PNG ou WebP valide.") from error
+
+
+def parse_profile_form(form, files, existing=None, include_team_fields=False):
+    display_name = form.get("display_name", "").strip()
+    bio = form.get("bio", "").strip()
+    if not display_name or len(display_name) > 100:
+        return None, "Le nom public est obligatoire et limité à 100 caractères."
+    if len(bio) > 1500:
+        return None, "La biographie est limitée à 1 500 caractères."
+    try:
+        instagram_url = validated_profile_url(form.get("instagram_url", ""))
+        linkedin_url = validated_profile_url(form.get("linkedin_url", ""))
+        website_url = validated_profile_url(form.get("website_url", ""))
+        new_photo = save_profile_photo(files.get("photo"))
+    except ValueError as error:
+        return None, str(error)
+
+    data = {
+        "display_name": display_name,
+        "bio": bio,
+        "photo_path": new_photo or (existing["photo_path"] if existing else None),
+        "instagram_url": instagram_url,
+        "linkedin_url": linkedin_url,
+        "website_url": website_url,
+        "team_role": (existing["team_role"] if existing else "Membre du BDE"),
+        "sort_order": (existing["sort_order"] if existing else 0),
+    }
+    if include_team_fields:
+        team_role = form.get("team_role", "").strip()
+        if not team_role or len(team_role) > 100:
+            return None, "Le rôle dans le BDE est obligatoire et limité à 100 caractères."
+        try:
+            sort_order = int(form.get("sort_order", "0") or 0)
+        except ValueError:
+            return None, "L’ordre d’affichage doit être un nombre entier."
+        data.update(team_role=team_role, sort_order=sort_order)
+    return data, None
+
+
 def create_app():
     database.initialise_database()
     app = Flask(
@@ -159,6 +229,7 @@ def create_app():
     )
     app.config.update(
         SECRET_KEY=load_secret_key(),
+        MAX_CONTENT_LENGTH=8 * 1024 * 1024,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=os.getenv("BDE_COOKIE_SECURE") == "1",
@@ -214,6 +285,18 @@ def create_app():
             return view(*args, **kwargs)
         return wrapped
 
+    def team_member_required(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if not g.user:
+                flash("Connecte-toi pour accéder à cet outil.", "info")
+                return redirect(url_for("login"))
+            if g.user["role"] not in TEAM_ROLES:
+                flash("Ton compte ne fait pas partie de l’équipe BDE.", "error")
+                return redirect(url_for("account"))
+            return view(*args, **kwargs)
+        return wrapped
+
     def show_page(page):
         if page not in PAGES:
             abort(404)
@@ -227,6 +310,8 @@ def create_app():
             context["event_details"] = page == "evenements"
         elif page == "billetterie":
             context["products"] = database.products()
+        elif page == "bde":
+            context["profiles"] = database.bde_profiles()
         elif page == "calendrier":
             event_id = request.args.get("event", type=int)
             selected_event = database.event_by_id(event_id) if event_id else None
@@ -273,19 +358,24 @@ def create_app():
         created_event = None
         google_create_url = None
         event_id = request.args.get("event_created", type=int)
-        if event_id and g.user["role"] in ("admin", "superadmin"):
+        if event_id and g.user["role"] in TEAM_ROLES:
             created_event = database.event_by_id(event_id)
             if created_event:
                 google_create_url = google_event_creation_url(created_event)
         return render_template(
             "account.html", page="account", title="Mon espace",
             created_event=created_event, google_create_url=google_create_url,
+            bde_profile=database.bde_profile_for_user(g.user["id"])
+            if g.user["role"] in TEAM_ROLES else None,
         )
 
     @app.get("/admin.html")
     @admin_required
     def admin_panel():
-        return render_template("admin.html", page="admin", title="Administration", users=database.users())
+        return render_template(
+            "admin.html", page="admin", title="Administration",
+            users=database.users(), profiles=database.bde_profiles(visible_only=False),
+        )
 
     @app.post("/admin/users/create")
     @admin_required
@@ -297,7 +387,7 @@ def create_app():
             flash("L’identifiant doit contenir entre 3 et 40 caractères.", "error")
         elif len(password) < 6:
             flash("Le mot de passe doit contenir au moins 6 caractères.", "error")
-        elif role not in ("member", "admin"):
+        elif role not in ("member", "bde", "admin"):
             flash("Le niveau d’autorité choisi est invalide.", "error")
         else:
             user_id = database.create_user(username, generate_password_hash(password), role)
@@ -318,7 +408,7 @@ def create_app():
         return redirect(url_for("admin_panel"))
 
     @app.post("/admin/events/create")
-    @admin_required
+    @team_member_required
     def create_event():
         data, error = parse_event_form(request.form)
         if error:
@@ -327,6 +417,81 @@ def create_app():
         event_id = database.create_event(data)
         flash("L’événement a été ajouté au site.", "success")
         return redirect(url_for("account", event_created=event_id))
+
+    @app.post("/compte/profil")
+    @team_member_required
+    def update_own_profile():
+        profile = database.bde_profile_for_user(g.user["id"])
+        if not profile:
+            flash("Aucun profil BDE n’est lié à ce compte.", "error")
+            return redirect(url_for("account"))
+        data, error = parse_profile_form(request.form, request.files, existing=profile)
+        if error:
+            flash(error, "error")
+        elif database.update_bde_profile(profile["id"], data):
+            flash("Ton profil public a été mis à jour.", "success")
+        return redirect(url_for("account"))
+
+    def protected_profile_for_admin(profile_id):
+        profile = database.bde_profile_by_id(profile_id)
+        if not profile:
+            return None
+        if profile["account_role"] == "superadmin" and g.user["role"] != "superadmin":
+            return None
+        return profile
+
+    @app.post("/admin/profiles/create")
+    @admin_required
+    def create_bde_profile():
+        data, error = parse_profile_form(
+            request.form, request.files, include_team_fields=True
+        )
+        if error:
+            flash(error, "error")
+        else:
+            database.create_manual_bde_profile(data)
+            flash("Le profil a été ajouté à la page BDE.", "success")
+        return redirect(url_for("admin_panel", onglet="bde"))
+
+    @app.post("/admin/profiles/<int:profile_id>/update")
+    @admin_required
+    def update_bde_profile(profile_id):
+        profile = protected_profile_for_admin(profile_id)
+        if not profile:
+            flash("Ce profil est introuvable ou protégé.", "error")
+            return redirect(url_for("admin_panel", onglet="bde"))
+        data, error = parse_profile_form(
+            request.form, request.files, existing=profile, include_team_fields=True
+        )
+        if error:
+            flash(error, "error")
+        elif database.update_bde_profile(profile_id, data, include_team_fields=True):
+            flash("Le profil BDE a été mis à jour.", "success")
+        return redirect(url_for("admin_panel", onglet="bde"))
+
+    @app.post("/admin/profiles/<int:profile_id>/visibility")
+    @admin_required
+    def set_bde_profile_visibility(profile_id):
+        profile = protected_profile_for_admin(profile_id)
+        if not profile:
+            flash("Ce profil est introuvable ou protégé.", "error")
+        else:
+            visible = request.form.get("visible") == "1"
+            database.set_bde_profile_visibility(profile_id, visible)
+            flash("La visibilité du profil a été mise à jour.", "success")
+        return redirect(url_for("admin_panel", onglet="bde"))
+
+    @app.post("/admin/profiles/<int:profile_id>/delete")
+    @admin_required
+    def delete_bde_profile(profile_id):
+        profile = protected_profile_for_admin(profile_id)
+        if not profile:
+            flash("Ce profil est introuvable ou protégé.", "error")
+        elif profile["user_id"] is not None:
+            flash("Un profil lié à un compte doit être masqué plutôt que supprimé.", "error")
+        elif database.delete_manual_bde_profile(profile_id):
+            flash("Le profil manuel a été supprimé.", "success")
+        return redirect(url_for("admin_panel", onglet="bde"))
 
     @app.get("/<page>.html")
     def public_page(page):
@@ -355,6 +520,14 @@ def create_app():
     @app.errorhandler(404)
     def not_found(error):
         return render_template("404.html", page="404", title="Page introuvable"), 404
+
+    @app.errorhandler(413)
+    def upload_too_large(error):
+        return render_template(
+            "error.html", page="error", title="Image trop volumineuse",
+            heading="Image trop volumineuse",
+            message="La photo envoyée doit peser moins de 8 Mo.",
+        ), 413
 
     return app
 
