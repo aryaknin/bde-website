@@ -22,7 +22,7 @@
       <div class="about-content">
         <p class="about-description">
           Le Bureau des Élèves rassemble les étudiants autour des grands rendez-vous de l’année,
-          fédère les associations et porte leur voix auprès de l’école. Il anime la vie du campus
+          porte leur voix auprès de l’école et anime la vie du campus
           avec des événements, des projets et un engagement fort pour toute la communauté étudiante.
         </p>
         <div>
@@ -60,12 +60,11 @@
 
   <section class="section portal" aria-labelledby="portal-title">
     <div class="container">
-      <p class="eyebrow">La vie associative</p>
+      <p class="eyebrow">La vie étudiante</p>
       <h2 id="portal-title">Un site fait par le BDE<br><em>pour les étudiants.</em></h2>
       <div class="portal-grid">
         {% for key, label, copy in [
           ('billetterie', 'Boutique', 'Découvre les articles et les adhésions du BDE.'),
-          ('associations', 'Associations', 'Rencontre les associations et trouve ta place sur le campus.'),
           ('calendrier', 'Calendrier', 'Retrouve les rendez-vous de la vie étudiante.'),
           ('bde', 'Le BDE', 'Découvre le bureau des élèves et ses projets.')
         ] %}
@@ -88,7 +87,7 @@
     </div>
     <p class="eyebrow">Bienvenue au BDE</p>
     <h2 id="welcome-title">Nouveau à l’ORT Sup&nbsp;?</h2>
-    <p id="welcome-copy">Découvre {{ site.site_name }}, ses associations et ses prochains événements.</p>
+    <p id="welcome-copy">Découvre {{ site.site_name }}, ses projets et ses prochains événements.</p>
     <div class="welcome-actions">
       <a class="button button-light" href="{{ url_for('public_page', page='billetterie') }}">Cotiser au BDE ↗</a>
       <a class="button button-outline-light" href="{{ url_for('public_page', page='evenements') }}">Voir les événements</a>

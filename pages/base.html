@@ -12,6 +12,15 @@
   <body class="{{ 'is-home' if page == 'index' else '' }}">
     <a class="skip-link" href="#contenu">Aller au contenu</a>
     {% include "partials/header.html" %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-stack" aria-live="polite">
+          {% for category, message in messages %}
+            <p class="flash flash--{{ category }}">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
     <main id="contenu" tabindex="-1">
       {% block content %}{% endblock %}
     </main>

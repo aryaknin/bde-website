@@ -1,5 +1,6 @@
 db/*.db
 db/*.db-*
+db/.session-secret
 .venv/
 __pycache__/
 *.py[cod]

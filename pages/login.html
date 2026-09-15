@@ -4,10 +4,21 @@
   <section class="section login-section">
     <div class="container">
       <div class="card login-card">
-        <p class="eyebrow">Ton espace étudiant</p>
+        <p class="eyebrow">Espace personnel</p>
         <h1>Connexion</h1>
-        <p>L’espace membre du {{ site.site_name }} sera bientôt disponible.</p>
-        <button class="button button-primary" type="button" disabled>Connexion bientôt disponible</button>
+        <p>Connecte-toi avec le compte créé par un administrateur.</p>
+        <form class="form-stack" method="post" action="{{ url_for('login') }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <label>
+            <span>Identifiant</span>
+            <input name="username" autocomplete="username" autofocus required>
+          </label>
+          <label>
+            <span>Mot de passe</span>
+            <input type="password" name="password" autocomplete="current-password" required>
+          </label>
+          <button class="button button-primary" type="submit">Se connecter</button>
+        </form>
         <a class="text-link" href="{{ url_for('home') }}">Retour à l’accueil →</a>
       </div>
     </div>

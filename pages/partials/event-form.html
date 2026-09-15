@@ -1,0 +1,55 @@
+<dialog class="event-dialog admin-event-dialog" id="ajouter-evenement" aria-labelledby="add-event-title" data-admin-event-dialog>
+  <button class="event-dialog__close" type="button" data-admin-event-close aria-label="Fermer">
+    <span aria-hidden="true">×</span>
+  </button>
+  <p class="eyebrow">Administration</p>
+  <h2 id="add-event-title">Ajouter un événement</h2>
+  <p class="event-dialog__description">Il sera publié immédiatement sur le site. Les champs de fin et l’organisateur spécifique sont facultatifs.</p>
+  <form class="event-admin-form" method="post" action="{{ url_for('create_event') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <label class="form-field form-field--wide">
+      <span>Titre</span>
+      <input name="title" maxlength="140" required>
+    </label>
+    <label class="form-field form-field--wide">
+      <span>Description</span>
+      <textarea name="description" rows="4" required></textarea>
+    </label>
+    <label class="form-field">
+      <span>Date de début</span>
+      <input type="date" name="start_date" required>
+    </label>
+    <label class="form-field">
+      <span>Heure de début</span>
+      <input type="time" name="start_time" required>
+    </label>
+    <label class="form-field">
+      <span>Date de fin <small>(facultatif)</small></span>
+      <input type="date" name="end_date">
+    </label>
+    <label class="form-field">
+      <span>Heure de fin <small>(facultatif)</small></span>
+      <input type="time" name="end_time">
+    </label>
+    <label class="form-field form-field--wide">
+      <span>Lieu</span>
+      <input name="location" maxlength="180" required>
+    </label>
+    <label class="form-field form-field--wide">
+      <span>Organisateur exceptionnel <small>(sinon BDE ORT Sup)</small></span>
+      <input name="organizer_name" maxlength="120" placeholder="Laisser vide pour BDE ORT Sup">
+    </label>
+    <label class="form-field">
+      <span>Tarif en euros</span>
+      <input type="number" name="price" min="0" step="0.01" value="0">
+    </label>
+    <label class="form-field">
+      <span>Nombre de places</span>
+      <input type="number" name="capacity" min="1" step="1">
+    </label>
+    <div class="event-dialog__actions form-field--wide">
+      <button class="button button-primary" type="submit">Publier sur le site</button>
+      <button class="button button-secondary" type="button" data-admin-event-close>Annuler</button>
+    </div>
+  </form>
+</dialog>

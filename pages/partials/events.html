@@ -1,17 +1,87 @@
 <div class="card-grid">
   {% for event in events %}
-    <article class="card event-card">
-      <p class="eyebrow">
-        <time datetime="{{ event.starts_at }}">{{ event.starts_at | date_fr }}</time>
-      </p>
-      <h3>{{ event.title }}</h3>
-      <p>{{ event.description }}</p>
-      <p class="card-meta">{{ event.location }} · {{ event.price_cents | price }}</p>
-      {% if event.association_name %}
-        <p class="card-meta">{{ event.association_name }}</p>
-      {% endif %}
-    </article>
+    {% if event_details %}
+      <article class="card event-card event-card--interactive">
+        <button
+          class="event-card__trigger"
+          type="button"
+          data-event-trigger
+          aria-haspopup="dialog"
+          aria-controls="event-dialog-{{ event.id }}"
+        >
+          <span class="eyebrow">
+            <time datetime="{{ event.starts_at }}">{{ event.starts_at | date_fr }}</time>
+          </span>
+          <strong class="event-card__title">{{ event.title }}</strong>
+          <span>{{ event.description }}</span>
+          <span class="card-meta">{{ event.location }} · {{ event.price_cents | price }}</span>
+          <span class="event-card__cta">Voir les détails <span aria-hidden="true">→</span></span>
+        </button>
+      </article>
+    {% else %}
+      <article class="card event-card">
+        <p class="eyebrow">
+          <time datetime="{{ event.starts_at }}">{{ event.starts_at | date_fr }}</time>
+        </p>
+        <h3>{{ event.title }}</h3>
+        <p>{{ event.description }}</p>
+        <p class="card-meta">{{ event.location }} · {{ event.price_cents | price }}</p>
+      </article>
+    {% endif %}
   {% else %}
     <p class="empty-state">Aucun événement n’est encore programmé. Reviens bientôt !</p>
   {% endfor %}
 </div>
+
+{% if event_details %}
+  {% for event in events %}
+    <dialog
+      class="event-dialog"
+      id="event-dialog-{{ event.id }}"
+      aria-labelledby="event-dialog-title-{{ event.id }}"
+    >
+      <button class="event-dialog__close" type="button" data-event-dialog-close aria-label="Fermer">
+        <span aria-hidden="true">×</span>
+      </button>
+      <p class="eyebrow">Événement du campus</p>
+      <h2 id="event-dialog-title-{{ event.id }}">{{ event.title }}</h2>
+      <p class="event-dialog__description">{{ event.description }}</p>
+      <dl class="event-dialog__facts">
+        <div>
+          <dt>Date et début</dt>
+          <dd><time datetime="{{ event.starts_at }}">{{ event.starts_at | date_fr }}</time></dd>
+        </div>
+        {% if event.ends_at %}
+          <div>
+            <dt>Fin</dt>
+            <dd><time datetime="{{ event.ends_at }}">{{ event.ends_at | date_fr }}</time></dd>
+          </div>
+        {% endif %}
+        <div>
+          <dt>Lieu</dt>
+          <dd>{{ event.location }}</dd>
+        </div>
+        <div>
+          <dt>Tarif</dt>
+          <dd>{{ event.price_cents | price }}</dd>
+        </div>
+        <div>
+          <dt>Organisateur</dt>
+          <dd>{{ event.organizer_name }}</dd>
+        </div>
+        {% if event.capacity %}
+          <div>
+            <dt>Capacité</dt>
+            <dd>{{ event.capacity }} places</dd>
+          </div>
+        {% endif %}
+      </dl>
+      <div class="event-dialog__actions">
+        <a class="button button-primary" href="{{ url_for('public_page', page='calendrier', event=event.id) }}#evenement-selectionne">
+          Voir dans le calendrier
+          <span aria-hidden="true">→</span>
+        </a>
+      </div>
+    </dialog>
+  {% endfor %}
+{% endif %}

@@ -9,36 +9,44 @@ else:
 def seed_database():
     initialise_database()
     with get_db() as db:
-        # Ne pas écraser une base que l’utilisateur a déjà renseignée.
-        if db.execute("SELECT COUNT(*) FROM associations").fetchone()[0]:
-            return False
-
-        db.executemany("""
-            INSERT INTO associations (name, slug, description, category, contact_email, instagram_url, is_featured)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, [
+        created = False
+        association_rows = [
             ("BDE ORT Sup", "bde-ort-sup", "Le bureau des élèves qui anime le campus et accompagne les étudiants.", "Vie étudiante", "bde@ort-montreuil.fr", "https://www.instagram.com/bde.ortmontreuil", 1),
-            ("ORT Sport", "ort-sport", "Des entraînements, des tournois et des moments sportifs ouverts à tous.", "Sport", "sport@ort-montreuil.fr", None, 1),
-            ("ORT Gaming", "ort-gaming", "Jeux vidéo, tournois et soirées détente sur le campus.", "Culture & loisirs", "gaming@ort-montreuil.fr", None, 0),
-        ])
+        ]
+        if not db.execute("SELECT 1 FROM associations LIMIT 1").fetchone():
+            db.executemany("""
+                INSERT INTO associations
+                    (name, slug, description, category, contact_email, instagram_url, is_featured)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, association_rows)
+            created = True
+
         association_ids = {row["slug"]: row["id"] for row in db.execute("SELECT id, slug FROM associations")}
-        db.executemany("""
-            INSERT INTO events (association_id, title, description, starts_at, ends_at, location, price_cents, capacity)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, [
-            (association_ids["bde-ort-sup"], "Soirée de rentrée", "Une première soirée pour se rencontrer et lancer l’année.", "2026-10-08T19:00:00+02:00", "2026-10-08T23:30:00+02:00", "Campus ORT Montreuil", 500, 120),
-            (association_ids["ort-sport"], "Tournoi de futsal", "Compose ton équipe et viens défendre les couleurs de ta promo.", "2026-10-17T14:00:00+02:00", "2026-10-17T18:00:00+02:00", "Gymnase municipal", 200, 64),
-            (association_ids["ort-gaming"], "Soirée jeux & tournoi Mario Kart", "Une soirée conviviale, débutants bienvenus.", "2026-11-05T18:30:00+01:00", "2026-11-05T22:30:00+01:00", "Salle associative", 0, 40),
-        ])
-        db.executemany("""
-            INSERT INTO products (association_id, name, description, price_cents, stock)
-            VALUES (?, ?, ?, ?, ?)
-        """, [
-            (association_ids["bde-ort-sup"], "Adhésion BDE 2026–2027", "Soutiens les projets du BDE et profite des avantages adhérents.", 1000, None),
-            (association_ids["bde-ort-sup"], "Sweat ORT Montreuil", "Sweat à capuche édition campus.", 3000, 50),
-            (association_ids["ort-sport"], "Inscription tournoi futsal", "Une place individuelle pour le tournoi de futsal.", 200, 64),
-        ])
-    return True
+        event_rows = [
+            (association_ids.get("bde-ort-sup"), "Soirée de rentrée", "Une première soirée pour se rencontrer et lancer l’année.", "2026-10-08T19:00:00+02:00", "2026-10-08T23:30:00+02:00", "Campus ORT Montreuil", 500, 120),
+            (association_ids.get("bde-ort-sup"), "Tournoi de futsal", "Compose ton équipe et viens défendre les couleurs de ta promo.", "2026-10-17T14:00:00+02:00", "2026-10-17T18:00:00+02:00", "Gymnase municipal", 200, 64),
+            (association_ids.get("bde-ort-sup"), "Soirée jeux & tournoi Mario Kart", "Une soirée conviviale, débutants bienvenus.", "2026-11-05T18:30:00+01:00", "2026-11-05T22:30:00+01:00", "Salle associative", 0, 40),
+        ]
+        if not db.execute("SELECT 1 FROM events LIMIT 1").fetchone():
+            db.executemany("""
+                INSERT INTO events
+                    (association_id, title, description, starts_at, ends_at, location, price_cents, capacity)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, event_rows)
+            created = True
+
+        product_rows = [
+            (association_ids.get("bde-ort-sup"), "Adhésion BDE 2026–2027", "Soutiens les projets du BDE et profite des avantages adhérents.", 1000, None),
+            (association_ids.get("bde-ort-sup"), "Sweat ORT Montreuil", "Sweat à capuche édition campus.", 3000, 50),
+            (association_ids.get("bde-ort-sup"), "Inscription tournoi futsal", "Une place individuelle pour le tournoi de futsal.", 200, 64),
+        ]
+        if not db.execute("SELECT 1 FROM products LIMIT 1").fetchone():
+            db.executemany("""
+                INSERT INTO products (association_id, name, description, price_cents, stock)
+                VALUES (?, ?, ?, ?, ?)
+            """, product_rows)
+            created = True
+    return created
 
 
 if __name__ == "__main__":

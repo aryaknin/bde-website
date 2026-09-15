@@ -14,7 +14,6 @@
       <div>
         <h2>La vie du campus</h2>
         <ul>
-          <li><a href="{{ url_for('public_page', page='associations') }}">Associations</a></li>
           <li><a href="{{ url_for('public_page', page='evenements') }}">Événements</a></li>
           <li><a href="{{ url_for('public_page', page='billetterie') }}">Boutique</a></li>
           <li><a href="{{ url_for('public_page', page='calendrier') }}">Calendrier</a></li>
@@ -24,8 +23,7 @@
         <h2>Le BDE</h2>
         <ul>
           <li><a href="{{ url_for('public_page', page='bde') }}">Nous découvrir</a></li>
-          <li><a href="{{ url_for('public_page', page='rec') }}">Respect, écoute et consentement</a></li>
-          <li><a href="{{ url_for('public_page', page='demande-domaine') }}">Un projet associatif ?</a></li>
+          <li><a href="{{ url_for('public_page', page='demande-domaine') }}">Proposer un projet</a></li>
           {% if site.instagram_url and site.instagram_url != '#' %}
             <li><a href="{{ site.instagram_url }}" target="_blank" rel="noopener noreferrer">Instagram ↗</a></li>
           {% endif %}

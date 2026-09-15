@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-hero page-hero--compact">
+    <div class="container">
+      <p class="eyebrow">Administration</p>
+      <h1>Gestion des comptes</h1>
+      <p>Crée les accès et choisis qui peut administrer le site.</p>
+    </div>
+  </section>
+
+  <section class="section admin-section">
+    <div class="container admin-layout">
+      <article class="admin-panel">
+        <p class="eyebrow">Nouveau compte</p>
+        <h2>Ajouter un utilisateur</h2>
+        <form class="form-stack" method="post" action="{{ url_for('create_user') }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <label>
+            <span>Identifiant</span>
+            <input name="username" minlength="3" maxlength="40" autocomplete="off" required>
+          </label>
+          <label>
+            <span>Mot de passe provisoire</span>
+            <input type="password" name="password" minlength="6" autocomplete="new-password" required>
+          </label>
+          <label>
+            <span>Niveau d’autorité</span>
+            <select name="role">
+              <option value="member">Membre</option>
+              <option value="admin">Administrateur</option>
+            </select>
+          </label>
+          <button class="button button-primary" type="submit">Créer le compte</button>
+        </form>
+      </article>
+
+      <article class="admin-panel admin-panel--wide">
+        <p class="eyebrow">Comptes existants</p>
+        <h2>Autorisations</h2>
+        <div class="user-list">
+          {% for user in users %}
+            <div class="user-row">
+              <div>
+                <strong>{{ user.username }}</strong>
+                <span>
+                  {% if user.role == 'superadmin' %}Superadministrateur{% elif user.role == 'admin' %}Administrateur{% else %}Membre{% endif %}
+                </span>
+              </div>
+              {% if user.is_protected or user.role == 'superadmin' %}
+                <span class="protected-badge">Compte protégé</span>
+              {% else %}
+                <form method="post" action="{{ url_for('update_user_role', user_id=user.id) }}">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                  <label class="sr-only" for="role-{{ user.id }}">Rôle de {{ user.username }}</label>
+                  <select id="role-{{ user.id }}" name="role">
+                    <option value="member" {% if user.role == 'member' %}selected{% endif %}>Membre</option>
+                    <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Administrateur</option>
+                  </select>
+                  <button class="button button-secondary" type="submit">Enregistrer</button>
+                </form>
+              {% endif %}
+            </div>
+          {% else %}
+            <p class="empty-state">Aucun compte n’existe encore.</p>
+          {% endfor %}
+        </div>
+      </article>
+    </div>
+  </section>
+{% endblock %}

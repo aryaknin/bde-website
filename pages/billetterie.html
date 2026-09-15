@@ -5,7 +5,7 @@
     <div class="container">
       <p class="eyebrow">La boutique</p>
       <h1>Aux couleurs <em>du BDE</em></h1>
-      <p>Les adhésions, articles et inscriptions proposés par les associations.</p>
+      <p>Les adhésions, articles et inscriptions proposés sur le campus.</p>
     </div>
   </section>
   <section class="section">
@@ -14,7 +14,7 @@
       <div class="card-grid">
         {% for product in products %}
           <article class="card">
-            <p class="eyebrow">{{ product.association_name or site.site_name }}</p>
+            <p class="eyebrow">{{ site.site_name }}</p>
             <h2>{{ product.name }}</h2>
             <p>{{ product.description }}</p>
             <p class="price">{{ product.price_cents | price }}</p>

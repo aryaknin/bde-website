@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-hero page-hero--compact">
+    <div class="container">
+      <p class="eyebrow">Espace personnel</p>
+      <h1>Bonjour {{ current_user.username }}</h1>
+      <p>
+        {% if current_user.role == 'superadmin' %}
+          Superadministrateur protégé
+        {% elif current_user.role == 'admin' %}
+          Compte administrateur
+        {% else %}
+          Compte membre
+        {% endif %}
+      </p>
+    </div>
+  </section>
+
+  <section class="section account-section">
+    <div class="container">
+      {% if created_event %}
+        <article class="created-event">
+          <div>
+            <p class="eyebrow">Événement enregistré</p>
+            <h2>{{ created_event.title }}</h2>
+            <p>Il est maintenant publié sur le site. Tu peux aussi préparer sa création dans Google Agenda.</p>
+          </div>
+          <a class="button button-primary" href="{{ google_create_url }}" target="_blank" rel="noopener">
+            Ajouter à Google Agenda ↗
+          </a>
+        </article>
+      {% endif %}
+
+      <div class="dashboard-grid">
+        <article class="dashboard-card">
+          <p class="eyebrow">Mon compte</p>
+          <h2>{{ current_user.username }}</h2>
+          <p>Ton niveau d’autorité est <strong>
+            {% if current_user.role == 'superadmin' %}superadministrateur{% elif current_user.role == 'admin' %}administrateur{% else %}membre{% endif %}
+          </strong>.</p>
+          <form method="post" action="{{ url_for('logout') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button class="button button-secondary" type="submit">Se déconnecter</button>
+          </form>
+        </article>
+
+        {% if current_user.role in ('admin', 'superadmin') %}
+          <article class="dashboard-card dashboard-card--accent">
+            <p class="eyebrow">Outils administrateur</p>
+            <h2>Gérer le site</h2>
+            <p>Ajoute des événements et administre les comptes autorisés.</p>
+            <div class="dashboard-actions">
+              <a class="button button-primary" href="{{ url_for('public_page', page='evenements', ajouter=1) }}#ajouter-evenement">Ajouter un événement</a>
+              <a class="button button-secondary" href="{{ url_for('admin_panel') }}">Gérer les comptes</a>
+            </div>
+          </article>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+{% endblock %}

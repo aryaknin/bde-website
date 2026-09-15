@@ -8,10 +8,57 @@
       <p>Tous les rendez-vous du BDE, classés par date.</p>
     </div>
   </section>
-  <section class="section" aria-label="Agenda">
-    <div class="container">
-      {% include "partials/events.html" %}
-      <iframe src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Europe%2FParis&showPrint=0&src=NDQ5MGY5ZmFhOGJjNDYxMmI4YzcxNGVmNTQxOThjZTVlYTgwZmVlMTFjOWJhNDM1NzBmM2U1OTE5OWMzY2FhYUBncm91cC5jYWxlbmRhci5nb29nbGUuY29t&color=%238e24aa" style="border:solid 1px #777" width="1200" height="600" frameborder="0" scrolling="no"></iframe>
+  <section class="section calendar-section" aria-label="Agenda">
+    <div class="calendar-container">
+      {% if selected_event %}
+        <article class="calendar-selection" id="evenement-selectionne">
+          <div>
+            <p class="eyebrow">Événement sélectionné</p>
+            <h2>{{ selected_event.title }}</h2>
+            <p>
+              <time datetime="{{ selected_event.starts_at }}">{{ selected_event.starts_at | date_fr }}</time>
+              · {{ selected_event.location }}
+            </p>
+          </div>
+          <div class="calendar-selection__actions">
+            {% if selected_event.google_calendar_url %}
+              <a class="button button-primary" href="{{ selected_event.google_calendar_url }}" target="_blank" rel="noopener">
+                Ouvrir dans Google Agenda
+              </a>
+            {% else %}
+              <a class="button button-secondary" href="{{ google_calendar_search_url }}" target="_blank" rel="noopener">
+                Rechercher dans Google Agenda
+              </a>
+            {% endif %}
+          </div>
+        </article>
+      {% endif %}
+      <div class="calendar-window">
+        <div class="calendar-window-bar" aria-hidden="true">
+          <span class="calendar-window-dots">
+            <i></i>
+            <i></i>
+            <i></i>
+          </span>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M7 2v3M17 2v3M3.5 9h17"></path>
+            <rect x="3.5" y="4" width="17" height="17" rx="2"></rect>
+          </svg>
+          <span>Calendrier officiel BDE</span>
+        </div>
+        <div class="calendar-embed-scroll">
+          <iframe
+            class="google-calendar"
+            title="Calendrier officiel du BDE ORT Sup"
+            src="https://calendar.google.com/calendar/embed?height=650&amp;wkst=2&amp;bgcolor=%23ffffff&amp;ctz=Europe%2FParis&amp;showTitle=0&amp;showNav=1&amp;showDate=1&amp;showPrint=1&amp;showTabs=1&amp;showCalendars=0&amp;mode=MONTH&amp;src=NDQ5MGY5ZmFhOGJjNDYxMmI4YzcxNGVmNTQxOThjZTVlYTgwZmVlMTFjOWJhNDM1NzBmM2U1OTE5OWMzY2FhYUBncm91cC5jYWxlbmRhci5nb29nbGUuY29t&amp;color=%2307558c"
+            width="100%"
+            height="650"
+            loading="lazy"
+            frameborder="0"
+            scrolling="no"
+          ></iframe>
+        </div>
+      </div>
     </div>
   </section>
 {% endblock %}

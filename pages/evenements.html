@@ -10,7 +10,24 @@
   </section>
   <section class="section" aria-label="Les événements">
     <div class="container">
+      {% if current_user and current_user.role in ('admin', 'superadmin') %}
+        <div class="section-heading section-heading--tools">
+          <div>
+            <p class="eyebrow">Outils administrateur</p>
+            <h2>Programmation</h2>
+          </div>
+          <button class="button button-primary" type="button" data-admin-event-open aria-controls="ajouter-evenement">
+            Ajouter un événement
+          </button>
+        </div>
+      {% endif %}
       {% include "partials/events.html" %}
     </div>
   </section>
+{% endblock %}
+
+{% block dialogs %}
+  {% if current_user and current_user.role in ('admin', 'superadmin') %}
+    {% include "partials/event-form.html" %}
+  {% endif %}
 {% endblock %}
