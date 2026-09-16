@@ -9,6 +9,7 @@
         <p>Connecte-toi avec ton identifiant ou ton adresse e-mail.</p>
         <form class="form-stack" method="post" action="{{ url_for('login') }}">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="next" value="{{ request.values.get('next', '') }}">
           <label>
             <span>Identifiant ou e-mail</span>
             <input name="username" autocomplete="username" autofocus required>
@@ -19,7 +20,7 @@
           </label>
           <button class="button button-primary" type="submit">Se connecter</button>
         </form>
-        <p class="auth-alternative">Pas encore de compte ? <a href="{{ url_for('register') }}">Créer un compte</a></p>
+        <p class="auth-alternative">Pas encore de compte ? <a href="{{ url_for('register', next=request.values.get('next', '')) }}">Créer un compte</a></p>
         <a class="text-link" href="{{ url_for('home') }}">Retour à l’accueil →</a>
       </div>
     </div>

@@ -26,17 +26,17 @@
           avec des événements, des projets et un engagement fort pour toute la communauté étudiante.
         </p>
         <div>
-          <p class="eyebrow">Depuis {{ site.institution_since }}</p>
-          <p class="about-statement">Une institution étudiante portée par et pour les élèves.</p>
+          <p class="eyebrow">ORT France · Depuis {{ site.institution_since }}</p>
+          <p class="about-statement">Une histoire au service de l’éducation et de la formation.</p>
         </div>
       </div>
-      <dl class="about-stats">
-        {% for value, label in [
-          (site.poles_count, 'Pôles'),
-          (site.members_count, 'Membres'),
-          (site.years_count, 'Ans d’histoire')
+      <dl class="about-stats" data-home-stats-url="{{ url_for('home_stats_api') }}">
+        {% for key, value, label in [
+          ('poles_count', site.poles_count, 'Pôle' if site.poles_count | int == 1 else 'Pôles'),
+          ('members_count', site.members_count, 'Membre du BDE' if site.members_count | int == 1 else 'Membres du BDE'),
+          ('years_count', site.years_count, 'Ans d’histoire d’ORT France')
         ] %}
-          <div>
+          <div data-home-stat="{{ key }}">
             <dt>{{ label }}</dt>
             <dd>{{ value }}</dd>
           </div>
@@ -80,6 +80,7 @@
 {% endblock %}
 
 {% block dialogs %}
+  {% if show_welcome %}
   <dialog class="welcome" aria-labelledby="welcome-title" aria-describedby="welcome-copy" data-welcome>
     <button class="welcome-close" type="button" aria-label="Fermer la fenêtre de bienvenue" data-dialog-close autofocus>×</button>
     <div class="welcome-badge">
@@ -97,4 +98,5 @@
       <a class="button button-outline-light" href="{{ url_for('public_page', page='evenements') }}">Voir les événements</a>
     </div>
   </dialog>
+  {% endif %}
 {% endblock %}

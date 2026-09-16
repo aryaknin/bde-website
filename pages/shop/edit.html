@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% from 'shop/macros.html' import product_image with context %}
+{% block content %}
+  <section class="page-hero page-hero--compact"><div class="container"><p class="eyebrow">Administration / Boutique</p><h1>{{ 'Modifier l’article' if product else 'Un nouvel article.' }}</h1><p>Photo, description, prix et stock : tout se gère ici.</p></div></section>
+  <section class="section shop-section"><div class="container">
+    <a class="text-link shop-back" href="{{ url_for('admin_panel', onglet='boutique') }}">← Gestion de la boutique</a>
+    <form class="shop-editor form-stack" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="shop-panel">
+        <label><span>Titre de l’article</span><input name="name" value="{{ values.get('name', '') }}" maxlength="120" required></label>
+        <label><span>Description</span><textarea name="description" rows="6" maxlength="5000" required>{{ values.get('description', '') }}</textarea></label>
+        <div class="shop-form-row">
+          <label><span>Prix en euros</span><input name="price" type="number" min="0" max="10000" step="0.01" value="{{ values.get('price', '') }}" required></label>
+          <label><span>Stock total restant</span><input name="stock" type="number" min="{{ product.reserved if product else 0 }}" max="1000000" step="1" value="{{ values.get('stock', '') }}" placeholder="Vide = illimité"></label>
+        </div>
+        <p class="shop-muted">Indique le stock restant avant déduction des réservations : 0 = épuisé, vide = illimité.{% if product %} Actuellement : {{ product.reserved }} exemplaire(s) réservé(s).{% endif %}</p>
+        <label><span>Type</span><select name="product_type"><option value="article" {% if values.get('product_type') != 'membership' %}selected{% endif %}>Article / inscription</option><option value="membership" {% if values.get('product_type') == 'membership' %}selected{% endif %}>Cotisation (renvoie vers l’espace compte)</option></select></label>
+        <label class="shop-checkbox"><input type="checkbox" name="is_active" value="1" {% if values.get('is_active') == '1' %}checked{% endif %}><span>Afficher cet article dans la boutique</span></label>
+        <button class="button button-primary" type="submit">Enregistrer l’article</button>
+      </div>
+      <div class="shop-panel">
+        {% if product %}<div class="editor-photo">{{ product_image(product) }}</div>{% endif %}
+        <label><span>{{ 'Remplacer la photo' if product and product.image_url else 'Photo de l’article' }}</span><input name="image" type="file" accept="image/jpeg,image/png,image/webp" {% if not product or not product.image_url %}required{% endif %}></label>
+        <p class="shop-muted">JPEG, PNG ou WebP · 8 Mo maximum. L’image est redimensionnée et réencodée. En cas d’erreur, sélectionne de nouveau le fichier.</p>
+      </div>
+    </form>
+  </div></section>
+{% endblock %}

@@ -18,6 +18,7 @@ from flask import (
     flash,
     g,
     jsonify,
+    make_response,
     redirect,
     render_template,
     request,
@@ -27,9 +28,11 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 
 if __package__:
-    from . import database
+    from . import database, shop, shop_store
 else:
     import database
+    import shop
+    import shop_store
 
 PARIS = ZoneInfo("Europe/Paris")
 MONTHS = (
@@ -87,10 +90,11 @@ def valid_email(value):
 
 def membership_configuration():
     settings = database.site_settings()
+    default_fee = database.DEFAULT_SETTINGS["membership_fee_cents"]
     try:
-        fee_cents = max(0, int(settings.get("membership_fee_cents", "1500")))
+        fee_cents = max(0, int(settings.get("membership_fee_cents", default_fee)))
     except ValueError:
-        fee_cents = 1500
+        fee_cents = int(default_fee)
     try:
         payment_url = validated_profile_url(settings.get("helloasso_membership_url", ""))
     except ValueError:
@@ -382,6 +386,8 @@ def create_app():
         if page not in PAGES:
             abort(404)
         context = {"page": page, "title": PAGES[page]}
+        if page == "index":
+            context["show_welcome"] = request.cookies.get("bde_welcome_seen") != "1"
         if page in ("index", "evenements"):
             items = database.events()
             if page == "index":
@@ -390,7 +396,7 @@ def create_app():
             context["events"] = items
             context["event_details"] = page == "evenements"
         elif page == "billetterie":
-            context["products"] = database.products()
+            context["products"] = shop_store.catalogue()
         elif page == "bde":
             context["profiles"] = database.bde_profiles()
         elif page == "calendrier":
@@ -402,7 +408,16 @@ def create_app():
                     "https://calendar.google.com/calendar/u/0/r/search?q="
                     f"{quote_plus(selected_event['title'])}"
                 )
-        return render_template(f"{page}.html", **context)
+        response = make_response(render_template(f"{page}.html", **context))
+        if page == "index":
+            response.headers["Cache-Control"] = "private, no-store"
+            if context["show_welcome"]:
+                response.set_cookie(
+                    "bde_welcome_seen", "1", max_age=24 * 60 * 60,
+                    httponly=True, samesite="Lax",
+                    secure=app.config["SESSION_COOKIE_SECURE"],
+                )
+        return response
 
     @app.get("/")
     def home():
@@ -436,9 +451,10 @@ def create_app():
                     database.create_contribution(user_id, school_year, fee_cents)
                     session.clear()
                     session["user_id"] = user_id
+                    shop.attach_cart(user_id)
                     csrf_token()
                     flash("Ton compte a été créé. Bienvenue au BDE ORT Sup !", "success")
-                    return redirect(url_for("account"))
+                    return redirect(url_for("shop.checkout" if request.form.get("next") == "checkout" else "account"))
         return render_template("register.html", page="register", title="Créer un compte")
 
     @app.route("/login.html", methods=("GET", "POST"))
@@ -454,9 +470,10 @@ def create_app():
             else:
                 session.clear()
                 session["user_id"] = credentials["id"]
+                shop.attach_cart(credentials["id"])
                 csrf_token()
                 flash(f"Bienvenue {credentials['username']}.", "success")
-                return redirect(url_for("account"))
+                return redirect(url_for("shop.checkout" if request.form.get("next") == "checkout" else "account"))
         return render_template("login.html", page="login", title="Connexion")
 
     @app.post("/logout")
@@ -497,7 +514,7 @@ def create_app():
         school_year, fee_cents, _ = membership_configuration()
         database.ensure_contributions(school_year, fee_cents)
         active_tab = request.args.get("onglet", "accounts")
-        if active_tab not in ("accounts", "bde", "cotisations"):
+        if active_tab not in ("accounts", "bde", "cotisations", "boutique"):
             active_tab = "accounts"
         return render_template(
             "admin.html", page="admin", title="Administration",
@@ -505,6 +522,7 @@ def create_app():
             contributions=database.contributions_with_users(),
             current_school_year=school_year, default_membership_fee_cents=fee_cents,
             active_admin_tab=active_tab,
+            shop_products=shop_store.catalogue(include_hidden=True), shop_orders=shop_store.orders(),
         )
 
     @app.post("/admin/users/create")
@@ -702,6 +720,12 @@ def create_app():
     def stats_api():
         return jsonify(database.stats())
 
+    @app.get("/api/home-stats")
+    def home_stats_api():
+        response = jsonify(database.home_statistics())
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @app.errorhandler(404)
     def not_found(error):
         return render_template("404.html", page="404", title="Page introuvable"), 404
@@ -714,6 +738,7 @@ def create_app():
             message="La photo envoyée doit peser moins de 8 Mo.",
         ), 413
 
+    app.register_blueprint(shop.shop)
     return app
 
 

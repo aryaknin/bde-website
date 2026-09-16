@@ -7,7 +7,7 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DATABASE_PATH = PROJECT_DIR / "db" / "bde-ort-sup.db"
 
-# Valeurs de démonstration : les réglages déjà enregistrés sont conservés.
+# Réglages initiaux : les modifications enregistrées sont conservées après migration.
 DEFAULT_SETTINGS = {
     "site_name": "BDE ORT Sup",
     "site_tagline": "La vie étudiante, par les étudiants.",
@@ -17,12 +17,11 @@ DEFAULT_SETTINGS = {
     "instagram_url": "https://www.instagram.com/bde.ortmontreuil",
     "linkedin_url": "#",
     "academic_year": "2026–2027",
-    "membership_fee_cents": "1500",
+    "membership_fee_cents": "500",
     "helloasso_membership_url": "",
-    "institution_since": "1956",
-    "poles_count": "30",
-    "members_count": "26",
-    "years_count": "70",
+    "institution_since": "1921",
+    "poles_count": "1",
+    "years_count": "105",
 }
 
 
@@ -45,6 +44,10 @@ def initialise_database():
             CREATE TABLE IF NOT EXISTS site_settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                name TEXT PRIMARY KEY,
+                applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS associations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -183,6 +186,37 @@ def initialise_database():
                   SELECT 1 FROM bde_profiles WHERE bde_profiles.user_id = users.id
               )
         """)
+        migrate_home_settings(db)
+    if __package__:
+        from .shop_store import initialise_shop
+    else:
+        from shop_store import initialise_shop
+    initialise_shop()
+
+
+def migrate_home_settings(db):
+    """Applique une seule fois les chiffres ORT et le tarif validés le 16/09/2026."""
+    migration = "2026-09-16-home-statistics-and-membership-fee"
+    if db.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (migration,)).fetchone():
+        return
+    db.executemany("""
+        INSERT INTO site_settings (key, value) VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    """, (
+        ("poles_count", "1"), ("institution_since", "1921"),
+        ("years_count", "105"), ("membership_fee_cents", "500"),
+    ))
+    db.execute("DELETE FROM site_settings WHERE key = 'members_count'")
+    # Corrige uniquement les anciennes échéances standard non réglées de cette rentrée.
+    db.execute("""
+        UPDATE contributions SET amount_cents = 500, updated_at = CURRENT_TIMESTAMP
+        WHERE school_year = '2026-2027' AND status = 'due' AND amount_cents = 1500
+    """)
+    db.execute("""
+        UPDATE products SET price_cents = 500
+        WHERE name = 'Adhésion BDE 2026–2027'
+    """)
+    db.execute("INSERT INTO schema_migrations (name) VALUES (?)", (migration,))
 
 
 def query(sql, parameters=(), booleans=()):
@@ -195,7 +229,18 @@ def query(sql, parameters=(), booleans=()):
 
 
 def site_settings():
-    return {row["key"]: row["value"] for row in query("SELECT key, value FROM site_settings")}
+    with get_db() as db:
+        settings = {row["key"]: row["value"] for row in db.execute("SELECT key, value FROM site_settings")}
+        # Même population que la galerie BDE : profils visibles, liés à un compte ou manuels.
+        settings["members_count"] = str(db.execute(
+            "SELECT COUNT(*) FROM bde_profiles WHERE is_visible = 1"
+        ).fetchone()[0])
+    return settings
+
+
+def home_statistics():
+    settings = site_settings()
+    return {key: int(settings[key]) for key in ("poles_count", "members_count", "years_count")}
 
 
 def events():

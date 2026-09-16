@@ -3,6 +3,8 @@ db/*.db-*
 db/.session-secret
 static/uploads/members/*
 !static/uploads/members/.gitkeep
+static/uploads/products/*
+!static/uploads/products/.gitkeep
 .venv/
 __pycache__/
 *.py[cod]

@@ -1,0 +1,22 @@
+{% macro product_image(product) %}
+  {% if product.image_url %}
+    <img src="{{ url_for('static', filename=product.image_url) }}" alt="{{ product.name }}" loading="lazy" width="600" height="600">
+  {% else %}
+    <div class="product-placeholder"><img src="{{ url_for('static', filename='images/logoort-removebg-preview.png') }}" alt="" width="120" height="120"><span>{{ site.site_name }}</span><small>Visuel à venir</small></div>
+  {% endif %}
+{% endmacro %}
+
+{% macro availability(product) %}
+  <span class="stock-label {{ 'stock-label--empty' if product.available == 0 else '' }}">
+    {% if product.product_type == 'membership' %}Depuis ton espace compte{% elif product.available is none %}Disponible{% elif product.available == 0 %}Indisponible{% else %}{{ product.available }} en stock{% endif %}
+  </span>
+{% endmacro %}
+
+{% macro summary(cart) %}
+  <div class="shop-summary">
+    <p class="eyebrow">Récapitulatif</p><h2>Ton panier</h2>
+    <dl><div><dt>Articles ({{ cart.count }})</dt><dd>{{ cart.total | price }}</dd></div><div><dt>Retrait au BDE</dt><dd>Gratuit</dd></div><div class="summary-total"><dt>Total</dt><dd>{{ cart.total | price }}</dd></div></dl>
+    <p class="shop-muted">Prix en euros. Pas de livraison : retrait à {{ site.campus_address }}.</p>
+    {{ caller() }}
+  </div>
+{% endmacro %}

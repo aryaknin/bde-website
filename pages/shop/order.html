@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+  <section class="page-hero page-hero--compact"><div class="container"><p class="eyebrow">Boutique / Commande {{ order.id[:8] | upper }}</p><h1>Le suivi de ta commande.</h1><p>Créée le {{ order.created_at | shop_date }}</p></div></section>
+  <section class="section shop-section"><div class="container cart-layout">
+    <div class="shop-panel">
+      <span class="order-status order-status--{{ order.status }}">{{ order_statuses[order.status] }}</span>
+      <h2>Les articles</h2>
+      <ul class="checkout-lines">{% for item in order['items'] %}<li><span>{{ item.name }} × {{ item.quantity }}<small>{{ item.unit_price_cents | price }} / unité</small></span><strong>{{ (item.unit_price_cents * item.quantity) | price }}</strong></li>{% endfor %}</ul>
+      <p>Compte : <strong>{{ order.username }}</strong></p><p>Retrait au BDE · {{ site.campus_address }}</p>
+      {% if order.status == 'awaiting_payment' %}
+        <div class="shop-notice"><strong>Commande non confirmée : paiement requis.</strong><p>Réservation jusqu’au {{ order.expires_at | shop_date }}. Sans paiement, les stocks seront libérés à cette échéance.</p></div>
+        {% if current_user.id == order.user_id %}
+          <form method="post" action="{{ url_for('shop.cancel', order_id=order.id) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="button button-secondary" type="submit">Annuler cette commande</button>
+          </form>
+        {% endif %}
+      {% elif order.status in ('cancelled', 'expired') %}
+        <p class="shop-notice">Cette commande n’est plus active. Aucun paiement n’a été validé et les stocks ont été libérés. Pour recommencer, ajoute à nouveau les articles depuis la boutique.</p>
+      {% elif order.status == 'paid' %}<p class="shop-notice">Paiement confirmé. Le BDE va préparer tes articles. Reviens ici pour connaître leur disponibilité.</p>
+      {% elif order.status == 'ready' %}<p class="shop-notice">Ta commande est prête ! Présente cette référence au BDE lors du retrait.</p>
+      {% else %}<p class="shop-notice">Commande retirée. Merci pour ton soutien au BDE !</p>{% endif %}
+      <a class="text-link shop-back" href="{{ url_for('shop.my_orders') }}">← Mes commandes</a>
+      {% if current_user.role in ('admin', 'superadmin') %}
+        <a class="text-link shop-back" href="{{ url_for('admin_panel', onglet='boutique') }}">Gestion de la boutique →</a>
+        {% if order.status in ('paid', 'ready') %}
+          <form method="post" action="{{ url_for('shop.fulfil', order_id=order.id) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="{{ 'ready' if order.status == 'paid' else 'collected' }}">
+            <button class="button button-primary" type="submit">{{ 'Marquer prête à retirer' if order.status == 'paid' else 'Confirmer le retrait' }}</button>
+          </form>
+        {% endif %}
+      {% endif %}
+    </div>
+    <aside class="shop-summary"><p class="eyebrow">Total de la commande</p><p class="product-detail__price">{{ order.total_cents | price }}</p><p>Retrait gratuit · EUR</p>
+      {% if order.status == 'awaiting_payment' %}<button class="button button-primary" disabled>Paiement bientôt disponible</button><p class="shop-muted">Le prestataire n’a pas encore été choisi. Aucun paiement n’est possible pour le moment.</p>{% endif %}
+      <a class="text-link" href="{{ url_for('public_page', page='billetterie') }}">Retour à la boutique →</a>
+    </aside>
+  </div></section>
+{% endblock %}

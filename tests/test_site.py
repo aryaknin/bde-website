@@ -118,6 +118,81 @@ class SiteTests(unittest.TestCase):
         self.assertIn("Événement &lt;test&gt;", html)
         self.assertIn("Événement <test>", self.client.get("/api/events").json[-1]["title"])
 
+    def test_home_counts_follow_visible_bde_profiles(self):
+        self.assertEqual(self.client.get("/api/home-stats").json, {
+            "poles_count": 1, "members_count": 2, "years_count": 105,
+        })
+        self.assertEqual(len(database.bde_profiles()), 2)
+        with database.get_db() as db:
+            db.execute("INSERT INTO site_settings (key, value) VALUES ('members_count', '999')")
+        self.assertEqual(self.client.get("/api/site").json["members_count"], "2")
+        self.login_as(self.client, "SuperTest", "super-test-pass")
+        token = self.csrf_token(self.client, "/admin.html")
+        profile = database.bde_profile_for_user(self.admin_id)
+        for visible, count in (("0", 1), ("1", 2)):
+            with self.subTest(visible=visible):
+                self.client.post(
+                    f"/admin/profiles/{profile['id']}/visibility",
+                    data={"_csrf_token": token, "visible": visible},
+                )
+                response = self.client.get("/api/home-stats")
+                self.assertEqual(response.json["members_count"], count)
+                self.assertIn("no-store", response.headers["Cache-Control"])
+                html = self.client.get("/").get_data(as_text=True)
+                self.assertRegex(html, rf'data-home-stat="members_count">\s*<dt>.*?</dt>\s*<dd>{count}</dd>')
+        for profile in database.bde_profiles():
+            database.set_bde_profile_visibility(profile["id"], False)
+        self.assertEqual(self.client.get("/api/home-stats").json["members_count"], 0)
+        self.assertEqual(database.site_settings()["members_count"], "0")
+
+    def test_home_welcome_is_shown_once_per_24_hours(self):
+        first = self.client.get("/")
+        self.assertIn("data-welcome", first.get_data(as_text=True))
+        welcome_cookie = next(
+            value for value in first.headers.getlist("Set-Cookie")
+            if value.startswith("bde_welcome_seen=")
+        )
+        self.assertIn("Max-Age=86400", welcome_cookie)
+        for route in ("/evenements.html", "/", "/index.html"):
+            response = self.client.get(route)
+            self.assertNotIn("data-welcome", response.get_data(as_text=True))
+            self.assertFalse(any(
+                value.startswith("bde_welcome_seen=")
+                for value in response.headers.getlist("Set-Cookie")
+            ))
+        self.login_as(self.client, "SuperTest", "super-test-pass")
+        self.assertNotIn("data-welcome", self.client.get("/").get_data(as_text=True))
+        # Un cookie arrivé à expiration n’est plus envoyé par le navigateur.
+        self.client.delete_cookie("bde_welcome_seen")
+        self.assertIn("data-welcome", self.client.get("/index.html").get_data(as_text=True))
+
+    def test_home_settings_migration_preserves_payment_history(self):
+        old_due = database.create_contribution(self.member_id, "2026-2027", 1500)
+        paid = database.create_contribution(self.admin_id, "2026-2027", 1500, "paid")
+        past_due = database.create_contribution(self.member_id, "2025-2026", 1500)
+        with database.get_db() as db:
+            db.execute("DELETE FROM schema_migrations WHERE name = ?", (
+                "2026-09-16-home-statistics-and-membership-fee",
+            ))
+            db.executemany("UPDATE site_settings SET value = ? WHERE key = ?", (
+                ("30", "poles_count"), ("1956", "institution_since"),
+                ("70", "years_count"), ("1500", "membership_fee_cents"),
+            ))
+            db.execute("UPDATE products SET price_cents = 1000 WHERE name = 'Adhésion BDE 2026–2027'")
+        database.initialise_database()
+        settings = database.site_settings()
+        self.assertEqual([settings[key] for key in (
+            "poles_count", "institution_since", "years_count", "membership_fee_cents"
+        )], ["1", "1921", "105", "500"])
+        self.assertEqual(database.contribution_by_id(old_due)["amount_cents"], 500)
+        self.assertEqual(database.contribution_by_id(paid)["amount_cents"], 1500)
+        self.assertEqual(database.contribution_by_id(past_due)["amount_cents"], 1500)
+        self.assertEqual(database.products()[0]["price_cents"], 500)
+        with database.get_db() as db:
+            db.execute("UPDATE contributions SET amount_cents = 1500 WHERE id = ?", (old_due,))
+        database.initialise_database()
+        self.assertEqual(database.contribution_by_id(old_due)["amount_cents"], 1500)
+
     def test_api_filters_and_existing_contracts(self):
         with database.get_db() as db:
             db.execute("UPDATE events SET published = 0 WHERE id = 1")
@@ -183,6 +258,7 @@ class SiteTests(unittest.TestCase):
         self.assertEqual(len(contributions), 1)
         self.assertEqual(contributions[0]["school_year"], current_school_year())
         self.assertEqual(contributions[0]["status"], "due")
+        self.assertEqual(contributions[0]["amount_cents"], 500)
         account = self.client.get("/compte.html").get_data(as_text=True)
         self.assertIn("Ma cotisation", account)
         self.assertIn("À régler", account)
@@ -519,10 +595,10 @@ class SiteTests(unittest.TestCase):
 
     def test_seed_preserves_existing_data(self):
         with database.get_db() as db:
-            db.execute("UPDATE site_settings SET value = '999' WHERE key = 'members_count'")
+            db.execute("UPDATE site_settings SET value = '2' WHERE key = 'poles_count'")
             db.execute("UPDATE events SET title = 'Mon événement' WHERE id = 1")
         self.assertFalse(seed_database())
-        self.assertEqual(database.site_settings()["members_count"], "999")
+        self.assertEqual(database.site_settings()["poles_count"], "2")
         self.assertEqual(database.events()[0]["title"], "Mon événement")
         self.assertEqual(database.stats(), {"events": 3, "products": 3})
 

@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% from 'shop/macros.html' import product_image, summary with context %}
+{% block content %}
+  <section class="page-hero page-hero--compact"><div class="container"><p class="eyebrow">Boutique / Panier</p><h1>Ton panier.</h1><p>Ta sélection reste enregistrée pour ta prochaine visite.</p></div></section>
+  <section class="section shop-section"><div class="container">
+    <a class="text-link shop-back" href="{{ url_for('public_page', page='billetterie') }}">← Continuer mes achats</a>
+    {% if cart['items'] %}
+      <div class="cart-layout">
+        <div class="cart-lines">
+          {% for item in cart['items'] %}
+            <article class="cart-line">
+              <div class="cart-line__image">{{ product_image(item) }}</div>
+              <div class="cart-line__body">
+                <h2>{{ item.name }}</h2><p>{{ item.price_cents | price }} / unité</p>
+                {% if item.issue %}<p class="shop-error" role="alert">{{ item.issue }}</p>{% endif %}
+                <form class="quantity-form form-stack" method="post" action="{{ url_for('shop.cart_update', product_id=item.id) }}">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                  <label><span class="sr-only">Quantité de {{ item.name }}</span><input type="number" name="quantity" value="{{ item.quantity }}" min="0" max="99" required></label>
+                  <button class="button button-secondary" type="submit">Actualiser</button>
+                </form>
+                <form method="post" action="{{ url_for('shop.cart_update', product_id=item.id) }}">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="quantity" value="0">
+                  <button class="shop-remove" type="submit">Retirer</button>
+                </form>
+              </div>
+              <strong class="cart-line__total">{{ item.subtotal | price }}</strong>
+            </article>
+          {% endfor %}
+          <p class="shop-muted">Les stocks ne sont pas bloqués par le panier. Ils sont vérifiés à nouveau lors de la préparation de ta commande. Le panier invité est conservé 90 jours sur ce navigateur ; une fois connecté, il est lié à ton compte.</p>
+        </div>
+        {% call summary(cart) %}
+          {% if cart.valid %}<a class="button button-primary" href="{{ url_for('shop.checkout') }}">{{ 'Préparer ma commande →' if current_user else 'Me connecter pour continuer →' }}</a>{% else %}<p class="shop-error">Corrige les articles indisponibles avant de continuer.</p>{% endif %}
+          <p class="shop-muted">Le paiement en ligne n’est pas encore disponible. La préparation n’effectue aucun paiement.</p>
+          {% if current_user %}<a class="text-link" href="{{ url_for('shop.my_orders') }}">Mes commandes en attente →</a>{% endif %}
+        {% endcall %}
+      </div>
+    {% else %}
+      <div class="shop-empty"><p class="eyebrow">À toi de choisir</p><h2>Ton panier est vide</h2><p>Découvre la sélection du BDE et ajoute tes premiers articles.</p><a class="button button-primary" href="{{ url_for('public_page', page='billetterie') }}">Découvrir la boutique</a>{% if current_user %}<a class="text-link" href="{{ url_for('shop.my_orders') }}">Voir mes commandes →</a>{% endif %}</div>
+    {% endif %}
+  </div></section>
+{% endblock %}

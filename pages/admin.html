@@ -15,6 +15,11 @@
         <button type="button" role="tab" aria-selected="{{ 'true' if active_admin_tab == 'accounts' else 'false' }}" aria-controls="admin-accounts" data-admin-tab="accounts">Comptes</button>
         <button type="button" role="tab" aria-selected="{{ 'true' if active_admin_tab == 'bde' else 'false' }}" aria-controls="admin-bde" data-admin-tab="bde">Page BDE</button>
         <button type="button" role="tab" aria-selected="{{ 'true' if active_admin_tab == 'cotisations' else 'false' }}" aria-controls="admin-contributions" data-admin-tab="cotisations">Cotisations</button>
+        <button type="button" role="tab" aria-selected="{{ 'true' if active_admin_tab == 'boutique' else 'false' }}" aria-controls="admin-shop" data-admin-tab="boutique">Boutique</button>
+      </div>
+
+      <div id="admin-shop" role="tabpanel" data-admin-panel="boutique" {% if active_admin_tab != 'boutique' %}hidden{% endif %}>
+        {% include 'shop/admin.html' %}
       </div>
 
       <div id="admin-accounts" role="tabpanel" data-admin-panel="accounts" {% if active_admin_tab != 'accounts' %}hidden{% endif %}>

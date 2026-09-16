@@ -279,7 +279,8 @@ body.page-leaving .site-footer {
   z-index: 20;
   color: white;
   background: var(--blue-deep);
-  animation: navigation-enter .42s cubic-bezier(.2, .75, .25, 1) both;
+  /* Ne pas conserver le transform final : il neutraliserait le masquage au scroll. */
+  animation: navigation-enter .42s cubic-bezier(.2, .75, .25, 1) backwards;
   transition: transform .3s ease, background-color .3s ease, box-shadow .3s ease;
 }
 
@@ -294,7 +295,6 @@ body.page-leaving .site-footer {
 
 .site-header.is-hidden {
   transform: translateY(-105%);
-  pointer-events: none;
 }
 
 .site-header.menu-open {
@@ -1989,7 +1989,7 @@ body.page-leaving .site-footer {
 }
 
 /* Adaptation aux tablettes et mobiles. */
-@media (max-width: 1250px) {
+@media (max-width: 1450px) {
   .header-inner {
     flex-wrap: wrap;
     gap: 0;
@@ -2032,7 +2032,7 @@ body.page-leaving .site-footer {
   }
 }
 
-@media (min-width: 1251px) {
+@media (min-width: 1451px) {
   .menu-toggle {
     display: none;
   }

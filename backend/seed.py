@@ -35,16 +35,19 @@ def seed_database():
             """, event_rows)
             created = True
 
+        membership_fee = int(db.execute(
+            "SELECT value FROM site_settings WHERE key = 'membership_fee_cents'"
+        ).fetchone()[0])
         product_rows = [
-            (association_ids.get("bde-ort-sup"), "Adhésion BDE 2026–2027", "Soutiens les projets du BDE et profite des avantages adhérents.", 1000, None),
+            (association_ids.get("bde-ort-sup"), "Adhésion BDE 2026–2027", "Soutiens les projets du BDE et profite des avantages adhérents.", membership_fee, None),
             (association_ids.get("bde-ort-sup"), "Sweat ORT Montreuil", "Sweat à capuche édition campus.", 3000, 50),
             (association_ids.get("bde-ort-sup"), "Inscription tournoi futsal", "Une place individuelle pour le tournoi de futsal.", 200, 64),
         ]
         if not db.execute("SELECT 1 FROM products LIMIT 1").fetchone():
             db.executemany("""
-                INSERT INTO products (association_id, name, description, price_cents, stock)
-                VALUES (?, ?, ?, ?, ?)
-            """, product_rows)
+                INSERT INTO products (association_id, name, description, price_cents, stock, product_type)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, [row + ("membership" if index == 0 else "article",) for index, row in enumerate(product_rows)])
             created = True
     return created
 

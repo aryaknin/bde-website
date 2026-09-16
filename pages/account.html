@@ -36,6 +36,15 @@
 
       <div class="dashboard-grid">
         <article class="dashboard-card">
+          <p class="eyebrow">La boutique du campus</p>
+          <h2>Mes commandes</h2>
+          <p>Retrouve ton panier, tes commandes et leur statut de paiement ou de retrait.</p>
+          <div class="dashboard-actions">
+            <a class="button button-primary" href="{{ url_for('shop.my_orders') }}">Mes commandes</a>
+            <a class="button button-secondary" href="{{ url_for('shop.cart') }}">Mon panier ({{ cart_count }})</a>
+          </div>
+        </article>
+        <article class="dashboard-card">
           <p class="eyebrow">Mon compte</p>
           <h2>{{ current_user.username }}</h2>
           {% if current_user.email %}<p>{{ current_user.email }}</p>{% endif %}
@@ -57,6 +66,7 @@
               <a class="button button-primary" href="{{ url_for('public_page', page='evenements', ajouter=1) }}#ajouter-evenement">Ajouter un événement</a>
               {% if current_user.role in ('admin', 'superadmin') %}
                 <a class="button button-secondary" href="{{ url_for('admin_panel') }}">Administration</a>
+                <a class="button button-secondary" href="{{ url_for('admin_panel', onglet='boutique') }}">Gérer la boutique</a>
               {% endif %}
             </div>
           </article>

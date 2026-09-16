@@ -1,29 +1,52 @@
 {% extends "base.html" %}
+{% from 'shop/macros.html' import product_image, availability with context %}
 
 {% block content %}
-  <section class="page-hero">
+  <section class="page-hero page-hero--compact shop-hero">
     <div class="container">
-      <p class="eyebrow">La boutique</p>
-      <h1>Aux couleurs <em>du BDE</em></h1>
-      <p>Les adhésions, articles et inscriptions proposés sur le campus.</p>
+      <p class="eyebrow">La boutique du campus</p>
+      <h1>L’esprit BDE, <em>à emporter.</em></h1>
+      <p>Des articles pour vivre le campus aux couleurs de l’ORT Sup.</p>
+      <div class="shop-hero__details"><span>Retrait au BDE</span><span>Panier sauvegardé</span><span>Stocks en temps réel</span></div>
     </div>
   </section>
-  <section class="section">
+  <section class="section shop-section">
     <div class="container">
-      <p class="notice">La commande et le paiement en ligne seront disponibles prochainement.</p>
-      <div class="card-grid">
+      <div class="shop-heading">
+        <div><p class="eyebrow">La sélection du BDE</p><h2>Tous les articles <small>{{ products | length }}</small></h2></div>
+        <div class="shop-actions">
+          {% if current_user and current_user.role in ('admin', 'superadmin') %}
+            <a class="button button-secondary" href="{{ url_for('admin_panel', onglet='boutique') }}">Gérer la boutique</a>
+          {% endif %}
+          <a class="button button-primary" href="{{ url_for('shop.cart') }}">Mon panier · {{ cart_count }}</a>
+        </div>
+      </div>
+      <p class="shop-notice">La boutique est en préparation : tu peux constituer ton panier et préparer une commande. Le paiement en ligne n’est pas encore activé ; aucune commande ne sera confirmée sans paiement.</p>
+      <div class="product-grid">
         {% for product in products %}
-          <article class="card">
-            <p class="eyebrow">{{ site.site_name }}</p>
-            <h2>{{ product.name }}</h2>
-            <p>{{ product.description }}</p>
-            <p class="price">{{ product.price_cents | price }}</p>
-            {% if product.stock is not none %}
-              <p class="card-meta">{{ product.stock }} disponible(s)</p>
-            {% endif %}
+          <article class="product-card">
+            <a class="product-card__visual" href="{{ url_for('shop.product_detail', product_id=product.id) }}" aria-label="Voir {{ product.name }}">
+              {{ product_image(product) }}
+              {% if product.product_type == 'membership' %}<span class="product-label">Adhésion</span>{% elif product.available == 0 %}<span class="product-label">Épuisé</span>{% endif %}
+            </a>
+            <div class="product-card__body">
+              <p class="eyebrow">{{ site.site_name }}</p>
+              <h3><a href="{{ url_for('shop.product_detail', product_id=product.id) }}">{{ product.name }}</a></h3>
+              <p class="product-excerpt">{{ product.description }}</p>
+              <div class="product-card__price"><strong>{{ product.price_cents | price }}</strong>{{ availability(product) }}</div>
+              {% if product.product_type == 'membership' %}
+                <a class="button button-secondary" href="{{ url_for('account') if current_user else url_for('login') }}#mes-cotisations">Gérer ma cotisation →</a>
+              {% else %}
+                <form method="post" action="{{ url_for('shop.cart_update', product_id=product.id) }}">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="add"><input type="hidden" name="quantity" value="1">
+                  <button class="button button-primary" type="submit" {% if product.available == 0 %}disabled{% endif %}>{{ 'Rupture de stock' if product.available == 0 else 'Ajouter au panier +' }}</button>
+                </form>
+              {% endif %}
+            </div>
           </article>
         {% else %}
-          <p class="empty-state">Aucun article disponible pour le moment.</p>
+          <p class="empty-state">La sélection arrive bientôt. Aucun article n’est disponible pour le moment.</p>
         {% endfor %}
       </div>
     </div>

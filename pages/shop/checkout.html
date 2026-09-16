@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% from 'shop/macros.html' import summary with context %}
+{% block content %}
+  <section class="page-hero page-hero--compact"><div class="container"><p class="eyebrow">Panier / Récapitulatif / Paiement</p><h1>On vérifie tout ?</h1><p>Une dernière vérification avant de préparer ta commande.</p></div></section>
+  <section class="section shop-section"><div class="container cart-layout">
+    <div class="shop-panel">
+      <p class="eyebrow">Retrait gratuit au campus</p><h2>{{ current_user.username }}</h2>
+      <p>{{ site.campus_address }}</p><p>Tu pourras retirer tes articles quand la commande sera payée et marquée « Prête à retirer » par le BDE.</p>
+      <ul class="checkout-lines">{% for item in cart['items'] %}<li><span>{{ item.name }} × {{ item.quantity }}</span><strong>{{ item.subtotal | price }}</strong></li>{% endfor %}</ul>
+      <div class="shop-notice"><strong>Le paiement n’est pas encore activé.</strong><p>En continuant, tu crées une commande en attente, pas un achat confirmé. Les articles sont réservés pendant 30 minutes puis libérés automatiquement si aucun paiement n’est reçu. Aucun montant n’est débité.</p></div>
+      <a class="text-link" href="{{ url_for('shop.cart') }}">← Modifier mon panier</a>
+    </div>
+    {% call summary(cart) %}
+      <form method="post" action="{{ url_for('shop.checkout') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="quote" value="{{ quote }}">
+        <button class="button button-primary" type="submit">Préparer la commande</button>
+      </form>
+      <p class="shop-muted">La commande restera en attente tant que le prestataire de paiement n’aura pas confirmé le règlement.</p>
+    {% endcall %}
+  </div></section>
+{% endblock %}
