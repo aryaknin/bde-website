@@ -3500,6 +3500,17 @@ main > section:nth-child(3) {
   font-size: .78rem;
 }
 
+.admin-event-card__toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .6rem;
+}
+
+.admin-event-card__toolbar-actions form {
+  margin: 0;
+}
+
 .admin-participant-list {
   display: grid;
   padding: .45rem 1.4rem 1rem;
@@ -4352,6 +4363,11 @@ main > section:nth-child(3) {
   }
 
   .admin-event-card__toolbar .button {
+    width: 100%;
+  }
+
+  .admin-event-card__toolbar-actions,
+  .admin-event-card__toolbar-actions form {
     width: 100%;
   }
 

@@ -724,6 +724,19 @@ class SiteTests(unittest.TestCase):
         self.assertEqual(event["organizer_name"], "Club partenaire")
         self.assertIn("Club partenaire", self.client.get("/evenements.html").get_data(as_text=True))
 
+    def test_admin_can_delete_event_and_its_registrations(self):
+        database.register_for_event(1, self.member_id)
+        self.login_as(self.client, "AdminTest", "admin123")
+        csrf = self.csrf_token(self.client, "/admin.html?onglet=events")
+        response = self.client.post(
+            "/admin/evenements/1/supprimer",
+            data={"_csrf_token": csrf},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/admin.html?onglet=events"))
+        self.assertIsNone(database.event_by_id(1))
+        self.assertEqual(database.event_registrations_for_event(1), [])
+
     def test_seed_restores_only_an_empty_event_collection(self):
         with database.get_db() as db:
             db.execute("DELETE FROM events")

@@ -657,6 +657,12 @@ def create_event(data):
         return cursor.lastrowid
 
 
+def delete_event(event_id):
+    """Supprime l’événement et ses inscriptions grâce à la cascade SQLite."""
+    with get_db() as db:
+        return db.execute("DELETE FROM events WHERE id = ?", (event_id,)).rowcount == 1
+
+
 def stats():
     with get_db() as db:
         return {

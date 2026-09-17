@@ -924,6 +924,18 @@ def create_app():
         flash("Inscription retirée.", "success")
         return redirect(url_for("admin_panel", onglet="events"))
 
+    @app.post("/admin/evenements/<int:event_id>/supprimer")
+    @team_member_required
+    def delete_event(event_id):
+        event = database.event_by_id(event_id)
+        if not event:
+            flash("Cet événement est introuvable.", "error")
+        elif database.delete_event(event_id):
+            flash(f"L’événement « {event['title']} » et ses inscriptions ont été supprimés.", "success")
+        else:
+            flash("L’événement n’a pas pu être supprimé.", "error")
+        return redirect(url_for("admin_panel", onglet="events"))
+
     @app.get("/evenements/<int:event_id>/participants.csv")
     @team_member_required
     def event_participants_csv(event_id):
