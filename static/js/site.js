@@ -410,8 +410,8 @@
       timer = setTimeout(scan, 700);
     };
     scanner.querySelector("[data-scanner-start]").addEventListener("click", async () => {
-      if (!window.BarcodeDetector) { status.textContent = "Ce navigateur ne prend pas en charge le scan QR. Utilise Chrome récent ou la saisie manuelle."; status.classList.add("is-error"); return; }
-      try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false}); video.srcObject=stream; await video.play(); status.textContent="Caméra active : vise le QR code."; scan(); } catch (_) { status.textContent="Autorise l’accès à la caméra puis réessaie."; status.classList.add("is-error"); }
+      if (!navigator.mediaDevices?.getUserMedia) { status.textContent = "La caméra requiert HTTPS (ou localhost) et un navigateur récent."; status.classList.add("is-error"); return; }
+      try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false}); video.srcObject=stream; await video.play(); status.textContent=window.BarcodeDetector ? "Caméra active : vise le QR code." : "Caméra active, mais ce navigateur ne sait pas lire les QR. Utilise Chrome récent."; if (window.BarcodeDetector) scan(); } catch (_) { status.textContent="Autorise l’accès à la caméra dans les réglages du navigateur puis réessaie. Le scan nécessite HTTPS."; status.classList.add("is-error"); }
     });
     scanner.querySelector("[data-scanner-stop]").addEventListener("click", () => { clearTimeout(timer); stream?.getTracks().forEach(track=>track.stop()); stream=null; video.srcObject=null; status.textContent="Caméra arrêtée."; });
     scanner.querySelector("[data-scanner-manual]").addEventListener("submit", event => { event.preventDefault(); submit(new FormData(event.currentTarget).get("token")); });

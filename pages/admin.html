@@ -16,10 +16,14 @@
         <button type="button" role="tab" aria-selected="{{ 'true' if active_admin_tab == 'bde' else 'false' }}" aria-controls="admin-bde" data-admin-tab="bde">Page BDE</button>
         <button type="button" role="tab" aria-selected="{{ 'true' if active_admin_tab == 'cotisations' else 'false' }}" aria-controls="admin-contributions" data-admin-tab="cotisations">Cotisations</button>
         <button type="button" role="tab" aria-selected="{{ 'true' if active_admin_tab == 'boutique' else 'false' }}" aria-controls="admin-shop" data-admin-tab="boutique">Boutique</button>
+        <button type="button" role="tab" aria-selected="{{ 'true' if active_admin_tab == 'events' else 'false' }}" aria-controls="admin-events" data-admin-tab="events">Événements</button>
       </div>
 
       <div id="admin-shop" role="tabpanel" data-admin-panel="boutique" {% if active_admin_tab != 'boutique' %}hidden{% endif %}>
         {% include 'shop/admin.html' %}
+      </div>
+      <div id="admin-events" role="tabpanel" data-admin-panel="events" {% if active_admin_tab != 'events' %}hidden{% endif %}>
+        {% for event in admin_events %}<article class="admin-panel"><p class="eyebrow">{{ event.starts_at | date_fr }} · {{ admin_event_participants[event.id] | length }} inscrit(s)</p><h2>{{ event.title }}</h2><a class="text-link" href="{{ url_for('event_participants_csv', event_id=event.id) }}">Exporter CSV</a><div class="user-list">{% for participant in admin_event_participants[event.id] %}<div class="user-row"><div><strong>{{ participant.username }}</strong><span>{{ participant.email or 'Sans e-mail' }} · {{ 'Présent' if participant.checked_in_at else 'Non scanné' }}</span></div><form method="post" action="{{ url_for('remove_event_registration', event_id=event.id, user_id=participant.user_id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="button button-secondary" type="submit">Retirer</button></form></div>{% else %}<p>Aucun inscrit.</p>{% endfor %}</div></article>{% endfor %}
       </div>
 
       <div id="admin-accounts" role="tabpanel" data-admin-panel="accounts" {% if active_admin_tab != 'accounts' %}hidden{% endif %}>

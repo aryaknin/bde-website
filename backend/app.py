@@ -229,14 +229,14 @@ def send_password_reset_email(recipient, username, reset_url):
     return True
 
 
-def send_event_registration_email(recipient, event):
+def send_event_registration_email(recipient, event, qr_url):
     """Confirmation simple d'inscription, envoyée uniquement si la boîte est configurée."""
     host = os.getenv("BDE_SMTP_HOST", "").strip()
     if not host:
         return False
     message = EmailMessage(); message["Subject"] = f"[BDE ORT Sup] Inscription confirmée — {event['title']}"
     message["From"] = os.getenv("BDE_SMTP_FROM", "").strip() or recipient; message["To"] = recipient
-    message.set_content(f"Ton inscription à « {event['title']} » est confirmée.\n\n{format_date(event['starts_at'])}\n{event['location']}\n\nPrésente ton QR code depuis la page Événements le jour J.")
+    message.set_content(f"Ton inscription à « {event['title']} » est confirmée.\n\n{format_date(event['starts_at'])}\n{event['location']}\n\nTon QR de présence :\n{qr_url}\n\nConnecte-toi avec ton compte pour l’afficher le jour J.")
     port = int(os.getenv("BDE_SMTP_PORT", "587")); user = os.getenv("BDE_SMTP_USERNAME", "").strip(); password = os.getenv("BDE_SMTP_PASSWORD", "")
     if port == 465:
         with smtplib.SMTP_SSL(host, port, timeout=12, context=ssl.create_default_context()) as server:
@@ -781,7 +781,7 @@ def create_app():
         school_year, fee_cents, _ = membership_configuration()
         database.ensure_contributions(school_year, fee_cents)
         active_tab = request.args.get("onglet", "accounts")
-        if active_tab not in ("accounts", "bde", "cotisations", "boutique"):
+        if active_tab not in ("accounts", "bde", "cotisations", "boutique", "events"):
             active_tab = "accounts"
         return render_template(
             "admin.html", page="admin", title="Administration",
@@ -790,6 +790,7 @@ def create_app():
             current_school_year=school_year, default_membership_fee_cents=fee_cents,
             active_admin_tab=active_tab,
             shop_products=shop_store.catalogue(include_hidden=True), shop_orders=shop_store.orders(),
+            admin_events=database.events(), admin_event_participants={item["id"]: database.event_registrations_for_event(item["id"]) for item in database.events()},
         )
 
     @app.post("/admin/users/create")
@@ -897,7 +898,9 @@ def create_app():
         try:
             created = database.register_for_event(event_id, g.user["id"])
             if created and g.user.get("email"):
-                try: send_event_registration_email(g.user["email"], database.event_by_id(event_id))
+                public_url = os.getenv("BDE_PUBLIC_URL", "").rstrip("/") or request.url_root.rstrip("/")
+                qr_url = public_url + url_for("event_qr", event_id=event_id)
+                try: send_event_registration_email(g.user["email"], database.event_by_id(event_id), qr_url)
                 except (OSError, smtplib.SMTPException): app.logger.exception("Échec de l’e-mail de confirmation d’inscription")
             flash("Inscription confirmée." if created else "Tu es déjà inscrit à cet événement.", "success")
         except ValueError as error:
@@ -910,6 +913,13 @@ def create_app():
         if database.cancel_event_registration(event_id, g.user["id"]):
             flash("Ton inscription a été annulée.", "success")
         return redirect(url_for("public_page", page="evenements") + f"#event-{event_id}")
+
+    @app.post("/admin/evenements/<int:event_id>/inscriptions/<int:user_id>/supprimer")
+    @team_member_required
+    def remove_event_registration(event_id, user_id):
+        database.cancel_event_registration(event_id, user_id)
+        flash("Inscription retirée.", "success")
+        return redirect(url_for("admin_panel", onglet="events"))
 
     @app.get("/evenements/<int:event_id>/participants.csv")
     @team_member_required
