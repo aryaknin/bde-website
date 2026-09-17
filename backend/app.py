@@ -946,7 +946,20 @@ def create_app():
     @app.get("/bde/presences.html")
     @team_member_required
     def attendance_scanner():
-        return render_template("attendance-scanner.html", page="account", title="Scanner les présences")
+        scan_events = []
+        for event in database.events():
+            registrations = database.event_registrations_for_event(event["id"])
+            scan_events.append({
+                "event": event,
+                "registered_count": len(registrations),
+                "checked_in_count": sum(bool(item["checked_in_at"]) for item in registrations),
+            })
+        return render_template(
+            "attendance-scanner.html", page="account", title="Scanner les présences",
+            scan_events=scan_events,
+            scan_registered_total=sum(item["registered_count"] for item in scan_events),
+            scan_checked_in_total=sum(item["checked_in_count"] for item in scan_events),
+        )
 
     @app.route("/bde/presences/valider/<token>", methods=("GET", "POST"))
     def attendance_check_in(token):

@@ -688,6 +688,12 @@ class SiteTests(unittest.TestCase):
         confirmation = self.client.get(check_in_url)
         self.assertEqual(confirmation.status_code, 200)
         self.assertIn("MembreTest", confirmation.get_data(as_text=True))
+        scanner_page = self.client.get("/bde/presences.html").get_data(as_text=True)
+        self.assertIn("Poste de contrôle prêt", scanner_page)
+        self.assertIn("État des entrées par événement", scanner_page)
+        admin_events = self.client.get("/admin.html?onglet=events").get_data(as_text=True)
+        self.assertIn('href="/bde/presences.html"', admin_events)
+        self.assertIn("Scanner les présences", admin_events)
         registration = database.event_registrations_for_event(1)[0]
         self.assertIsNone(registration["checked_in_at"])
 
