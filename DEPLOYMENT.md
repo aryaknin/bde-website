@@ -86,6 +86,7 @@ Le fichier `/etc/bde-website.env` est créé sur le VPS et ne doit pas être ver
 ```dotenv
 BDE_SECRET_KEY=<valeur-aléatoire-secrète>
 BDE_COOKIE_SECURE=1
+BDE_PUBLIC_URL=https://bde-ortmontreuil.fr
 ```
 
 ### Envoi des formulaires contact et projet
@@ -112,6 +113,8 @@ sudo journalctl -u bde-website -n 50 --no-pager
 ```
 
 Le champ expéditeur doit être autorisé par le fournisseur SMTP. Pour Gmail, Microsoft 365 ou OVH Mail, utiliser un **mot de passe d’application** si le fournisseur le demande, jamais le mot de passe personnel du compte.
+
+`BDE_PUBLIC_URL` sert aux liens envoyés par e-mail, notamment la réinitialisation de mot de passe. Il doit être l’URL publique HTTPS du site, sans `/` final.
 
 Créer ou remplacer le fichier sans afficher le secret :
 

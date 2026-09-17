@@ -1687,6 +1687,45 @@ main > section:nth-child(3) {
   grid-column: 1 / -1;
 }
 
+.inquiry-form .form-field {
+  gap: .55rem;
+  padding: .3rem;
+  border: 1px solid transparent;
+  border-radius: .9rem;
+  transition: border-color .2s ease, background-color .2s ease, transform .2s ease;
+}
+
+.inquiry-form .form-field:focus-within {
+  border-color: #91dff3;
+  background: #f3fbfe;
+  transform: translateY(-2px);
+}
+
+.inquiry-form input,
+.inquiry-form select,
+.inquiry-form textarea {
+  border-color: #c7dce7;
+  border-radius: .75rem;
+  padding: .85rem .95rem;
+  background: linear-gradient(135deg, #fff, #f8fcfe);
+  box-shadow: inset 0 1px 2px #032f6108;
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+.inquiry-form input::placeholder,
+.inquiry-form textarea::placeholder {
+  color: #8193a0;
+}
+
+.inquiry-form input:focus,
+.inquiry-form select:focus,
+.inquiry-form textarea:focus {
+  border-color: var(--cyan);
+  outline: 0;
+  background: white;
+  box-shadow: 0 0 0 4px #12b9e51c, inset 0 1px 2px #032f6108;
+}
+
 .inquiry-form textarea {
   min-height: 7rem;
   resize: vertical;
@@ -1764,6 +1803,14 @@ main > section:nth-child(3) {
 
 .text-link--light {
   color: white;
+}
+
+.security-card {
+  scroll-margin-top: calc(var(--header-height) + 1rem);
+}
+
+.password-form {
+  margin-top: 1.25rem;
 }
 
 .login-card .button,

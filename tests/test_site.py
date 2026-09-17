@@ -287,6 +287,57 @@ class SiteTests(unittest.TestCase):
         self.assertIn("Bonjour SuperTest", account)
         self.assertIn("Superadministrateur protégé", account)
 
+    def test_password_change_and_one_time_reset_link(self):
+        self.login_as(self.client, "MembreTest", "membre123")
+        token = self.csrf_token(self.client, "/compte.html")
+        response = self.client.post("/compte/mot-de-passe", data={
+            "_csrf_token": token,
+            "current_password": "membre123",
+            "password": "nouveau-mot-de-passe",
+            "password_confirmation": "nouveau-mot-de-passe",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.client.post("/logout", data={"_csrf_token": token})
+        self.assertEqual(
+            self.login_as(self.client, "MembreTest", "nouveau-mot-de-passe").status_code, 302
+        )
+        self.client.post("/logout", data={"_csrf_token": self.csrf_token(self.client, "/compte.html")})
+
+        reset_token = self.csrf_token(self.client, "/mot-de-passe-oublie.html")
+        with patch.object(app_module, "send_password_reset_email", return_value=True) as sender:
+            response = self.client.post("/mot-de-passe-oublie.html", data={
+                "_csrf_token": reset_token, "email": "membretest"
+            })
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(sender.called)
+
+        reset_token = self.csrf_token(self.client, "/mot-de-passe-oublie.html")
+        with database.get_db() as db:
+            db.execute("UPDATE users SET email = ? WHERE id = ?", ("membre@example.com", self.member_id))
+        with patch.object(app_module, "send_password_reset_email", return_value=True) as sender:
+            self.client.post("/mot-de-passe-oublie.html", data={
+                "_csrf_token": reset_token, "email": "membre@example.com"
+            })
+        self.assertTrue(sender.called)
+        reset_path = urlsplit(sender.call_args.args[2]).path
+        raw_token = reset_path.rsplit("/", 1)[-1]
+        csrf = self.csrf_token(self.client, reset_path)
+        response = self.client.post(reset_path, data={
+            "_csrf_token": csrf,
+            "password": "mot-de-passe-reinitialise",
+            "password_confirmation": "mot-de-passe-reinitialise",
+        })
+        self.assertTrue(response.location.endswith("/login.html"))
+        self.assertEqual(
+            self.login_as(self.client, "membre@example.com", "mot-de-passe-reinitialise").status_code, 302
+        )
+        self.client.get("/logout")
+        self.assertIn(
+            "invalide ou a expiré", self.client.get(
+                f"/reinitialiser-mot-de-passe/{raw_token}", follow_redirects=True
+            ).get_data(as_text=True)
+        )
+
     def test_public_registration_creates_member_and_contribution(self):
         self.assertIn("Créer un compte", self.client.get("/").get_data(as_text=True))
         token = self.csrf_token(self.client, "/register.html")

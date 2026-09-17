@@ -98,6 +98,17 @@ def initialise_database():
                 is_protected INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token_hash TEXT NOT NULL UNIQUE,
+                expires_at TEXT NOT NULL,
+                used_at TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS password_reset_tokens_lookup
+                ON password_reset_tokens(token_hash, expires_at);
         """)
         user_table = db.execute(
             "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
@@ -308,6 +319,58 @@ def user_credentials(identifier):
         WHERE username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE
     """, (identifier, identifier), booleans=("is_protected",))
     return items[0] if items else None
+
+
+def user_by_email(email):
+    items = query("""
+        SELECT id, username, email, password_hash, role, is_protected, created_at
+        FROM users WHERE email = ? COLLATE NOCASE
+    """, (email,), booleans=("is_protected",))
+    return items[0] if items else None
+
+
+def create_password_reset_token(user_id, token_hash, expires_at):
+    with get_db() as db:
+        db.execute("DELETE FROM password_reset_tokens WHERE user_id = ?", (user_id,))
+        db.execute("""
+            INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+            VALUES (?, ?, ?)
+        """, (user_id, token_hash, expires_at))
+
+
+def password_reset_token(token_hash):
+    items = query("""
+        SELECT password_reset_tokens.id, password_reset_tokens.user_id,
+               password_reset_tokens.expires_at, password_reset_tokens.used_at,
+               users.username, users.email
+        FROM password_reset_tokens JOIN users ON users.id = password_reset_tokens.user_id
+        WHERE password_reset_tokens.token_hash = ? AND password_reset_tokens.used_at IS NULL
+    """, (token_hash,))
+    return items[0] if items else None
+
+
+def reset_password_with_token(token_hash, password_hash, now):
+    """Consomme un jeton valable une fois et remplace le mot de passe associé."""
+    with get_db() as db:
+        token = db.execute("""
+            SELECT id, user_id FROM password_reset_tokens
+            WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?
+        """, (token_hash, now)).fetchone()
+        if not token:
+            return False
+        db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, token["user_id"]))
+        db.execute(
+            "UPDATE password_reset_tokens SET used_at = ? WHERE id = ?", (now, token["id"])
+        )
+        db.execute("DELETE FROM password_reset_tokens WHERE user_id = ? AND id != ?", (token["user_id"], token["id"]))
+        return True
+
+
+def update_user_password(user_id, password_hash):
+    with get_db() as db:
+        cursor = db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id))
+        db.execute("DELETE FROM password_reset_tokens WHERE user_id = ?", (user_id,))
+        return cursor.rowcount == 1
 
 
 def users():

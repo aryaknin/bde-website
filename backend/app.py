@@ -3,6 +3,7 @@
 import os
 import re
 import secrets
+from hashlib import sha256
 import smtplib
 import ssl
 from datetime import datetime, timedelta
@@ -179,6 +180,47 @@ def send_inquiry_email(kind, values):
                 server.ehlo()
             if username:
                 server.login(username, password)
+            server.send_message(message)
+    return True
+
+
+def send_password_reset_email(recipient, username, reset_url):
+    """Envoie un lien à usage unique ; le jeton brut n'est jamais conservé en base."""
+    smtp_host = os.getenv("BDE_SMTP_HOST", "").strip()
+    if not smtp_host:
+        return False
+    sender = os.getenv("BDE_SMTP_FROM", "").strip() or recipient
+    username_smtp = os.getenv("BDE_SMTP_USERNAME", "").strip()
+    password = os.getenv("BDE_SMTP_PASSWORD", "")
+    try:
+        port = int(os.getenv("BDE_SMTP_PORT", "587"))
+    except ValueError:
+        port = 587
+    message = EmailMessage()
+    message["Subject"] = "[BDE ORT Sup] Réinitialisation de ton mot de passe"
+    message["From"] = sender
+    message["To"] = recipient
+    message.set_content(
+        f"Bonjour {username},\n\n"
+        "Une demande de réinitialisation de mot de passe a été effectuée. "
+        "Ce lien est valable 30 minutes et ne peut être utilisé qu’une fois :\n\n"
+        f"{reset_url}\n\n"
+        "Si tu n’es pas à l’origine de cette demande, tu peux ignorer cet e-mail."
+    )
+    context = ssl.create_default_context()
+    if port == 465:
+        with smtplib.SMTP_SSL(smtp_host, port, timeout=12, context=context) as server:
+            if username_smtp:
+                server.login(username_smtp, password)
+            server.send_message(message)
+    else:
+        with smtplib.SMTP(smtp_host, port, timeout=12) as server:
+            server.ehlo()
+            if os.getenv("BDE_SMTP_STARTTLS", "1") != "0":
+                server.starttls(context=context)
+                server.ehlo()
+            if username_smtp:
+                server.login(username_smtp, password)
             server.send_message(message)
     return True
 
@@ -606,12 +648,78 @@ def create_app():
                 return redirect(url_for("shop.checkout" if request.form.get("next") == "checkout" else "account"))
         return render_template("login.html", page="login", title="Connexion")
 
+    @app.route("/mot-de-passe-oublie.html", methods=("GET", "POST"))
+    def forgot_password():
+        if request.method == "POST":
+            email = request.form.get("email", "").strip().lower()
+            user = database.user_by_email(email) if valid_email(email) else None
+            if user:
+                token = secrets.token_urlsafe(32)
+                token_hash = sha256(token.encode("utf-8")).hexdigest()
+                expires_at = (datetime.now(PARIS) + timedelta(minutes=30)).isoformat()
+                database.create_password_reset_token(user["id"], token_hash, expires_at)
+                reset_path = url_for("reset_password", token=token)
+                public_url = os.getenv("BDE_PUBLIC_URL", "").rstrip("/")
+                reset_url = f"{public_url}{reset_path}" if public_url else request.url_root.rstrip("/") + reset_path
+                try:
+                    send_password_reset_email(user["email"], user["username"], reset_url)
+                except (OSError, smtplib.SMTPException):
+                    app.logger.exception("Échec de l’envoi du lien de réinitialisation")
+            flash(
+                "Si cette adresse correspond à un compte, un lien de réinitialisation vient d’être envoyé.",
+                "success",
+            )
+            return redirect(url_for("forgot_password"))
+        return render_template("forgot-password.html", page="login", title="Mot de passe oublié")
+
+    @app.route("/reinitialiser-mot-de-passe/<token>", methods=("GET", "POST"))
+    def reset_password(token):
+        token_hash = sha256(token.encode("utf-8")).hexdigest()
+        reset = database.password_reset_token(token_hash)
+        valid_token = bool(reset and parse_date(reset["expires_at"]) > datetime.now(PARIS))
+        if not valid_token:
+            flash("Ce lien est invalide ou a expiré. Demande un nouveau lien.", "error")
+            return redirect(url_for("forgot_password"))
+        if request.method == "POST":
+            password = request.form.get("password", "")
+            confirmation = request.form.get("password_confirmation", "")
+            if len(password) < 8:
+                flash("Le mot de passe doit contenir au moins 8 caractères.", "error")
+            elif password != confirmation:
+                flash("Les deux mots de passe ne correspondent pas.", "error")
+            elif database.reset_password_with_token(
+                token_hash, generate_password_hash(password), datetime.now(PARIS).isoformat()
+            ):
+                flash("Ton mot de passe a été réinitialisé. Tu peux te connecter.", "success")
+                return redirect(url_for("login"))
+            else:
+                flash("Ce lien est invalide ou a expiré. Demande un nouveau lien.", "error")
+                return redirect(url_for("forgot_password"))
+        return render_template("reset-password.html", page="login", title="Nouveau mot de passe", token=token)
+
     @app.post("/logout")
     @login_required
     def logout():
         session.clear()
         flash("Tu es maintenant déconnecté.", "success")
         return redirect(url_for("home"))
+
+    @app.post("/compte/mot-de-passe")
+    @login_required
+    def change_password():
+        credentials = database.user_credentials(g.user["username"])
+        current_password = request.form.get("current_password", "")
+        password = request.form.get("password", "")
+        confirmation = request.form.get("password_confirmation", "")
+        if not credentials or not check_password_hash(credentials["password_hash"], current_password):
+            flash("Le mot de passe actuel est incorrect.", "error")
+        elif len(password) < 8:
+            flash("Le nouveau mot de passe doit contenir au moins 8 caractères.", "error")
+        elif password != confirmation:
+            flash("Les deux nouveaux mots de passe ne correspondent pas.", "error")
+        elif database.update_user_password(g.user["id"], generate_password_hash(password)):
+            flash("Ton mot de passe a été mis à jour.", "success")
+        return redirect(url_for("account") + "#securite")
 
     @app.get("/compte.html")
     @login_required

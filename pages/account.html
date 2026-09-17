@@ -57,6 +57,19 @@
           </form>
         </article>
 
+        <article class="dashboard-card security-card" id="securite">
+          <p class="eyebrow">Sécurité</p>
+          <h2>Mot de passe</h2>
+          <p>Pour protéger ton compte, confirme ton mot de passe actuel avant de le modifier.</p>
+          <form class="form-stack password-form" method="post" action="{{ url_for('change_password') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <label><span>Mot de passe actuel</span><input type="password" name="current_password" autocomplete="current-password" required></label>
+            <label><span>Nouveau mot de passe</span><input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
+            <label><span>Confirmer le nouveau mot de passe</span><input type="password" name="password_confirmation" autocomplete="new-password" minlength="8" required></label>
+            <button class="button button-secondary" type="submit">Mettre à jour le mot de passe</button>
+          </form>
+        </article>
+
         {% if current_user.role in ('bde', 'admin', 'superadmin') %}
           <article class="dashboard-card dashboard-card--accent">
             <p class="eyebrow">Outils BDE</p>
