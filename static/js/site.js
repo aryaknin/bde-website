@@ -410,11 +410,10 @@
       timer = setTimeout(scan, 700);
     };
     scanner.querySelector("[data-scanner-start]").addEventListener("click", async () => {
-      if (!navigator.mediaDevices?.getUserMedia) { status.textContent = "La caméra requiert HTTPS (ou localhost) et un navigateur récent."; status.classList.add("is-error"); return; }
-      try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false}); video.srcObject=stream; await video.play(); status.textContent=window.BarcodeDetector ? "Caméra active : vise le QR code." : "Caméra active, mais ce navigateur ne sait pas lire les QR. Utilise Chrome récent."; if (window.BarcodeDetector) scan(); } catch (_) { status.textContent="Autorise l’accès à la caméra dans les réglages du navigateur puis réessaie. Le scan nécessite HTTPS."; status.classList.add("is-error"); }
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { status.textContent = "La caméra exige HTTPS. Ouvre https://bde-ortmontreuil.fr (pas http:// ni une adresse IP)."; status.classList.add("is-error"); return; }
+      try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false}); video.srcObject=stream; await video.play(); status.textContent=window.BarcodeDetector ? "Caméra active : vise le QR code." : "Caméra active, mais ce navigateur ne sait pas lire les QR. Utilise Chrome récent."; if (window.BarcodeDetector) scan(); } catch (error) { status.textContent=`Caméra refusée (${error.name}). Autorise-la dans les réglages du navigateur puis réessaie.`; status.classList.add("is-error"); }
     });
     scanner.querySelector("[data-scanner-stop]").addEventListener("click", () => { clearTimeout(timer); stream?.getTracks().forEach(track=>track.stop()); stream=null; video.srcObject=null; status.textContent="Caméra arrêtée."; });
-    scanner.querySelector("[data-scanner-manual]").addEventListener("submit", event => { event.preventDefault(); submit(new FormData(event.currentTarget).get("token")); });
   }
 
   const teamFilter = document.querySelector("[data-team-filter]");

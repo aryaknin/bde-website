@@ -3,6 +3,6 @@
 <section class="page-hero page-hero--compact"><div class="container"><p class="eyebrow">Outil BDE</p><h1>Scanner les <em>présences</em></h1><p>Autorise la caméra, vise le QR code d’un participant et confirme son entrée.</p></div></section>
 <section class="section scanner-section"><div class="container scanner-layout" data-attendance-scanner data-scan-url="{{ url_for('scan_attendance') }}" data-csrf="{{ csrf_token() }}">
   <div><video class="scanner-video" data-scanner-video playsinline muted></video><p class="scanner-status" data-scanner-status>Caméra inactive.</p></div>
-  <div class="scanner-controls"><button class="button button-primary" type="button" data-scanner-start>Activer la caméra</button><button class="button button-secondary" type="button" data-scanner-stop>Arrêter</button><p>Si nécessaire, colle le contenu du QR ci-dessous.</p><form data-scanner-manual><input name="token" placeholder="Code QR" required><button class="button button-outline" type="submit">Valider le code</button></form></div>
+  <div class="scanner-controls"><button class="button button-primary" type="button" data-scanner-start>Activer la caméra</button><button class="button button-secondary" type="button" data-scanner-stop>Arrêter</button><p>Autorise l’accès à la caméra lorsque le navigateur le demande. Le scan fonctionne sur HTTPS et Chrome récent.</p></div>
 </div></section>
 {% endblock %}
