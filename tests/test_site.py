@@ -670,6 +670,37 @@ class SiteTests(unittest.TestCase):
         self.assertIn("Rechercher dans Google Agenda", calendar)
         self.assertIn("q=Soir%C3%A9e+de+rentr%C3%A9e", calendar)
 
+    def test_external_qr_requires_team_login_and_explicit_check_in(self):
+        database.register_for_event(1, self.member_id)
+        token = app_module.URLSafeTimedSerializer(
+            self.app.secret_key, salt="bde-event-presence-v1"
+        ).dumps({"event_id": 1, "user_id": self.member_id})
+        check_in_url = f"/bde/presences/valider/{token}"
+
+        response = self.client.get(check_in_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/login.html"))
+
+        response = self.login_as(self.client, "AdminTest", "admin123")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith(check_in_url))
+
+        confirmation = self.client.get(check_in_url)
+        self.assertEqual(confirmation.status_code, 200)
+        self.assertIn("MembreTest", confirmation.get_data(as_text=True))
+        registration = database.event_registrations_for_event(1)[0]
+        self.assertIsNone(registration["checked_in_at"])
+
+        csrf = self.csrf_token(self.client, check_in_url)
+        validated = self.client.post(check_in_url, data={"_csrf_token": csrf})
+        self.assertEqual(validated.status_code, 200)
+        self.assertIn("Entrée validée", validated.get_data(as_text=True))
+        registration = database.event_registrations_for_event(1)[0]
+        self.assertIsNotNone(registration["checked_in_at"])
+
+        repeated = self.client.post(check_in_url, data={"_csrf_token": csrf})
+        self.assertIn("Déjà enregistré", repeated.get_data(as_text=True))
+
     def test_direct_google_event_url_is_used_when_available(self):
         with database.get_db() as db:
             db.execute(

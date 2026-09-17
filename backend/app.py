@@ -669,11 +669,14 @@ def create_app():
             if not credentials or not check_password_hash(credentials["password_hash"], password):
                 flash("Identifiant ou mot de passe incorrect.", "error")
             else:
+                attendance_return_to = session.get("attendance_return_to", "")
                 session.clear()
                 session["user_id"] = credentials["id"]
                 shop.attach_cart(credentials["id"])
                 csrf_token()
                 flash(f"Bienvenue {credentials['username']}.", "success")
+                if attendance_return_to.startswith("/bde/presences/valider/"):
+                    return redirect(attendance_return_to)
                 return redirect(url_for("shop.checkout" if request.form.get("next") == "checkout" else "account"))
         return render_template("login.html", page="login", title="Connexion")
 
@@ -935,13 +938,56 @@ def create_app():
         if not registration: abort(404)
         import qrcode
         token = event_tokens().dumps({"event_id": event_id, "user_id": g.user["id"]})
-        image = qrcode.make(token); output = BytesIO(); image.save(output, "PNG"); output.seek(0)
+        public_url = os.getenv("BDE_PUBLIC_URL", "").rstrip("/") or request.url_root.rstrip("/")
+        validation_url = public_url + url_for("attendance_check_in", token=token)
+        image = qrcode.make(validation_url); output = BytesIO(); image.save(output, "PNG"); output.seek(0)
         return send_file(output, mimetype="image/png", max_age=0)
 
     @app.get("/bde/presences.html")
     @team_member_required
     def attendance_scanner():
         return render_template("attendance-scanner.html", page="account", title="Scanner les présences")
+
+    @app.route("/bde/presences/valider/<token>", methods=("GET", "POST"))
+    def attendance_check_in(token):
+        if not g.user:
+            session["attendance_return_to"] = request.path
+            flash("Connecte-toi avec un compte BDE pour contrôler cette entrée.", "info")
+            return redirect(url_for("login"))
+        if g.user["role"] not in TEAM_ROLES:
+            flash("Ton compte ne fait pas partie de l’équipe BDE.", "error")
+            return redirect(url_for("account"))
+
+        try:
+            payload = event_tokens().loads(token, max_age=365 * 24 * 60 * 60)
+            event_id, user_id = int(payload["event_id"]), int(payload["user_id"])
+        except (BadSignature, KeyError, TypeError, ValueError):
+            return render_template(
+                "attendance-confirm.html", page="account", title="QR invalide",
+                valid=False, attendance_state="invalid", participant=None, event=None,
+            ), 400
+
+        participant = database.user_by_id(user_id)
+        event = database.event_by_id(event_id)
+        registration = next(
+            (item for item in database.event_registrations_for_event(event_id) if item["user_id"] == user_id),
+            None,
+        )
+        if not participant or not event or not registration:
+            return render_template(
+                "attendance-confirm.html", page="account", title="Inscription introuvable",
+                valid=False, attendance_state="invalid", participant=participant, event=event,
+            ), 404
+
+        attendance_state = "already" if registration["checked_in_at"] else "pending"
+        if request.method == "POST":
+            attendance_state = database.check_in_event_registration(event_id, user_id) or "invalid"
+
+        return render_template(
+            "attendance-confirm.html", page="account", title="Contrôle d’entrée",
+            valid=attendance_state != "invalid", attendance_state=attendance_state,
+            participant=participant, event=event,
+        )
 
     @app.post("/bde/presences/scan")
     @team_member_required

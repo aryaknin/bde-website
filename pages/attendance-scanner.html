@@ -6,82 +6,64 @@
       <div>
         <p class="eyebrow">Contrôle des entrées</p>
         <h1>Scanner les <em>présences</em></h1>
-        <p>Vérifie instantanément les billets des participants depuis un téléphone ou un ordinateur.</p>
+        <p>Utilise l’appareil photo du téléphone ou ton application QR habituelle. Aucun accès caméra au site n’est nécessaire.</p>
       </div>
       <div class="scanner-hero__badge" aria-label="Accès réservé à l’équipe BDE">
         <span aria-hidden="true">✓</span>
-        <div>
-          <strong>Accès BDE</strong>
-          <small>Contrôle sécurisé</small>
-        </div>
+        <div><strong>Accès BDE</strong><small>Contrôle sécurisé</small></div>
       </div>
     </div>
   </section>
 
   <section class="section scanner-section">
-    <div
-      class="container scanner-shell"
-      data-attendance-scanner
-      data-scan-url="{{ url_for('scan_attendance') }}"
-      data-csrf="{{ csrf_token() }}"
-    >
-      <div class="scanner-stage">
-        <div class="scanner-stage__heading">
-          <div>
-            <p class="eyebrow">Caméra</p>
-            <h2>Présente le QR dans le cadre</h2>
-          </div>
-          <span class="scanner-live" data-scanner-live><i></i> Inactive</span>
+    <div class="container external-scan-layout">
+      <div class="external-scan-card">
+        <div class="external-scan-card__heading">
+          <p class="eyebrow">Mode d’emploi</p>
+          <h2>Trois étapes, aucun réglage</h2>
+          <p>Le QR contient désormais un lien sécurisé vers le contrôle de l’inscription.</p>
         </div>
 
-        <div class="scanner-viewport">
-          <video class="scanner-video" data-scanner-video playsinline webkit-playsinline muted></video>
-          <canvas data-scanner-canvas hidden></canvas>
-          <div class="scanner-frame" aria-hidden="true">
-            <i></i><i></i><i></i><i></i><span></span>
-          </div>
-          <div class="scanner-placeholder" data-scanner-placeholder>
-            <span aria-hidden="true">▦</span>
-            <strong>Caméra désactivée</strong>
-            <small>Appuie sur « Démarrer le scan »</small>
-          </div>
-        </div>
+        <ol class="external-scan-steps">
+          <li>
+            <span class="external-scan-steps__number">01</span>
+            <div><strong>Ouvre un lecteur QR</strong><p>Appareil photo sur iPhone, Google Lens ou n’importe quelle application QR sur Android.</p></div>
+          </li>
+          <li>
+            <span class="external-scan-steps__number">02</span>
+            <div><strong>Scanne le billet du participant</strong><p>Appuie sur la notification ou le lien proposé par l’application.</p></div>
+          </li>
+          <li>
+            <span class="external-scan-steps__number">03</span>
+            <div><strong>Confirme l’entrée</strong><p>Vérifie le nom et l’événement, puis valide la présence depuis la fiche qui s’ouvre.</p></div>
+          </li>
+        </ol>
 
-        <p class="scanner-status" data-scanner-status role="status" aria-live="polite">
-          Prêt à contrôler les entrées.
-        </p>
-
-        <div class="scanner-actions">
-          <button class="button button-primary" type="button" data-scanner-start>Démarrer le scan</button>
-          <button class="button button-secondary" type="button" data-scanner-switch disabled>Changer de caméra</button>
-          <button class="button button-secondary" type="button" data-scanner-stop disabled>Arrêter</button>
+        <div class="external-scan-notice">
+          <span aria-hidden="true">i</span>
+          <p><strong>Première utilisation ?</strong> Connecte-toi au site avec ton compte BDE. Après la connexion, tu seras automatiquement ramené vers le billet scanné.</p>
         </div>
       </div>
 
-      <aside class="scanner-sidebar">
-        <div class="scanner-result" data-scanner-result>
-          <span class="scanner-result__icon" aria-hidden="true">—</span>
-          <p class="eyebrow">Dernier contrôle</p>
-          <h2>En attente d’un QR</h2>
-          <p>Le résultat du contrôle apparaîtra ici.</p>
+      <aside class="external-scan-aside">
+        <div class="external-scan-phone" aria-hidden="true">
+          <div class="external-scan-phone__speaker"></div>
+          <div class="external-scan-phone__screen">
+            <span class="external-scan-phone__corner external-scan-phone__corner--one"></span>
+            <span class="external-scan-phone__corner external-scan-phone__corner--two"></span>
+            <span class="external-scan-phone__corner external-scan-phone__corner--three"></span>
+            <span class="external-scan-phone__corner external-scan-phone__corner--four"></span>
+            <span class="external-scan-phone__qr">▦</span>
+            <span class="external-scan-phone__line"></span>
+          </div>
+          <p>Vise le QR du billet</p>
         </div>
 
-        <div class="scanner-help">
-          <p class="eyebrow">Pour un scan rapide</p>
-          <ol>
-            <li><span>1</span> Utilise Chrome ou Safari récent.</li>
-            <li><span>2</span> Autorise la caméra du navigateur.</li>
-            <li><span>3</span> Place le QR à plat et bien éclairé.</li>
-          </ol>
-          <p class="scanner-help__note">
-            Le QR est lu directement sur l’appareil : aucune image de la caméra n’est envoyée au serveur.
-          </p>
+        <div class="external-scan-actions">
+          <a class="button button-primary" href="{{ url_for('admin_panel', onglet='events') }}">Gérer les inscriptions</a>
+          <a class="text-link" href="{{ url_for('public_page', page='evenements') }}">Voir les événements →</a>
         </div>
-
-        <a class="text-link" href="{{ url_for('admin_panel', onglet='events') }}">Voir les listes d’inscrits →</a>
       </aside>
     </div>
   </section>
-
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" crossorigin="anonymous"></script>
 {% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="attendance-confirm-page">
+    <div class="container attendance-confirm-wrap">
+      <a class="attendance-confirm-back" href="{{ url_for('attendance_scanner') }}">← Mode d’emploi du scan</a>
+
+      <article class="attendance-ticket attendance-ticket--{{ attendance_state }}">
+        <div class="attendance-ticket__status" aria-hidden="true">
+          {% if attendance_state in ('checked_in', 'already') %}✓{% elif attendance_state == 'pending' %}▦{% else %}!{% endif %}
+        </div>
+
+        {% if valid %}
+          <p class="eyebrow">Billet vérifié</p>
+          <h1>
+            {% if attendance_state == 'checked_in' %}Entrée validée
+            {% elif attendance_state == 'already' %}Déjà enregistré
+            {% else %}Confirmer l’entrée{% endif %}
+          </h1>
+
+          <div class="attendance-ticket__person">
+            <span>{{ participant.username[:1] | upper }}</span>
+            <div><small>Participant</small><strong>{{ participant.username }}</strong></div>
+          </div>
+
+          <dl class="attendance-ticket__facts">
+            <div><dt>Événement</dt><dd>{{ event.title }}</dd></div>
+            <div><dt>Date</dt><dd>{{ event.starts_at | date_fr }}</dd></div>
+            <div><dt>Lieu</dt><dd>{{ event.location }}</dd></div>
+          </dl>
+
+          {% if attendance_state == 'pending' %}
+            <form method="post">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button class="button button-primary attendance-ticket__button" type="submit">Valider la présence</button>
+            </form>
+            <p class="attendance-ticket__hint">Vérifie l’identité du participant avant de valider.</p>
+          {% elif attendance_state == 'already' %}
+            <p class="attendance-ticket__message">Cette personne avait déjà été marquée présente. Aucune deuxième entrée n’a été créée.</p>
+          {% else %}
+            <p class="attendance-ticket__message">La présence vient d’être enregistrée dans la liste des participants.</p>
+          {% endif %}
+        {% else %}
+          <p class="eyebrow">Contrôle impossible</p>
+          <h1>QR invalide</h1>
+          <p class="attendance-ticket__message">Ce billet est invalide, trop ancien, ou l’inscription a été annulée. Demande au participant d’afficher à nouveau son QR depuis son compte.</p>
+        {% endif %}
+
+        <div class="attendance-ticket__footer">
+          <span>BDE ORT Sup</span>
+          <a href="{{ url_for('admin_panel', onglet='events') }}">Liste des inscrits</a>
+        </div>
+      </article>
+    </div>
+  </section>
+{% endblock %}
