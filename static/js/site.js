@@ -395,25 +395,175 @@
   const scanner = document.querySelector("[data-attendance-scanner]");
   if (scanner) {
     const video = scanner.querySelector("[data-scanner-video]");
+    const canvas = scanner.querySelector("[data-scanner-canvas]");
     const status = scanner.querySelector("[data-scanner-status]");
-    let stream; let timer;
+    const live = scanner.querySelector("[data-scanner-live]");
+    const placeholder = scanner.querySelector("[data-scanner-placeholder]");
+    const resultCard = scanner.querySelector("[data-scanner-result]");
+    const resultIcon = resultCard.querySelector(".scanner-result__icon");
+    const resultTitle = resultCard.querySelector("h2");
+    const resultText = resultCard.querySelector("p:last-child");
+    const startButton = scanner.querySelector("[data-scanner-start]");
+    const switchButton = scanner.querySelector("[data-scanner-switch]");
+    const stopButton = scanner.querySelector("[data-scanner-stop]");
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    let stream;
+    let timer;
+    let detector;
+    let facingMode = "environment";
+    let busy = false;
+    let lastToken = "";
+    let lastScanAt = 0;
+
+    if ("BarcodeDetector" in window) {
+      try {
+        detector = new BarcodeDetector({ formats: ["qr_code"] });
+      } catch (_) {
+        detector = null;
+      }
+    }
+
+    const setStatus = (message, state = "") => {
+      status.textContent = message;
+      status.classList.toggle("is-success", state === "success");
+      status.classList.toggle("is-error", state === "error");
+    };
+
+    const setCameraState = (active) => {
+      scanner.classList.toggle("is-scanning", active);
+      placeholder.hidden = active;
+      live.classList.toggle("is-active", active);
+      live.innerHTML = `<i></i> ${active ? "En direct" : "Inactive"}`;
+      startButton.disabled = active;
+      switchButton.disabled = !active;
+      stopButton.disabled = !active;
+    };
+
+    const showResult = (message, successful) => {
+      resultCard.classList.toggle("is-success", successful);
+      resultCard.classList.toggle("is-error", !successful);
+      resultIcon.textContent = successful ? "✓" : "!";
+      resultTitle.textContent = successful ? "Entrée validée" : "Contrôle refusé";
+      resultText.textContent = message;
+    };
+
     const submit = async (token) => {
-      if (!token) return;
-      const data = new URLSearchParams({token, _csrf_token: scanner.dataset.csrf});
-      const response = await fetch(scanner.dataset.scanUrl, {method: "POST", body: data, credentials: "same-origin"});
-      const result = await response.json(); status.textContent = result.message;
-      status.classList.toggle("is-error", !response.ok); status.classList.toggle("is-success", response.ok);
+      const now = Date.now();
+      if (!token || busy || (token === lastToken && now - lastScanAt < 5000)) return;
+      busy = true;
+      lastToken = token;
+      lastScanAt = now;
+      setStatus("QR détecté, vérification en cours…");
+
+      try {
+        const data = new URLSearchParams({ token, _csrf_token: scanner.dataset.csrf });
+        const response = await fetch(scanner.dataset.scanUrl, {
+          method: "POST",
+          body: data,
+          credentials: "same-origin",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        });
+        const result = await response.json();
+        const message = result.message || "Le contrôle n’a pas pu être effectué.";
+        setStatus(message, response.ok ? "success" : "error");
+        showResult(message, response.ok);
+        if (navigator.vibrate) navigator.vibrate(response.ok ? 120 : [80, 60, 80]);
+      } catch (_) {
+        const message = "Impossible de joindre le serveur. Vérifie ta connexion puis réessaie.";
+        setStatus(message, "error");
+        showResult(message, false);
+      } finally {
+        window.setTimeout(() => { busy = false; }, 1000);
+      }
     };
+
+    const decodeWithJsQr = () => {
+      if (!window.jsQR || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return "";
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      if (!width || !height) return "";
+      canvas.width = width;
+      canvas.height = height;
+      context.drawImage(video, 0, 0, width, height);
+      const image = context.getImageData(0, 0, width, height);
+      const code = window.jsQR(image.data, width, height, { inversionAttempts: "dontInvert" });
+      return code?.data || "";
+    };
+
     const scan = async () => {
-      if (!stream || !window.BarcodeDetector) return;
-      try { const codes = await new BarcodeDetector({formats:["qr_code"]}).detect(video); if (codes[0]) { await submit(codes[0].rawValue); } } catch (_) {}
-      timer = setTimeout(scan, 700);
+      if (!stream) return;
+      try {
+        let token = "";
+        if (detector && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          try {
+            const codes = await detector.detect(video);
+            token = codes[0]?.rawValue || "";
+          } catch (_) {
+            detector = null;
+          }
+        }
+        if (!token) token = decodeWithJsQr();
+        if (token) await submit(token);
+      } catch (_) {
+        // Une image momentanément illisible est normale pendant que l’utilisateur cadre le QR.
+      }
+      timer = window.setTimeout(scan, 350);
     };
-    scanner.querySelector("[data-scanner-start]").addEventListener("click", async () => {
-      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { status.textContent = "La caméra exige HTTPS. Ouvre https://bde-ortmontreuil.fr (pas http:// ni une adresse IP)."; status.classList.add("is-error"); return; }
-      try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false}); video.srcObject=stream; await video.play(); status.textContent=window.BarcodeDetector ? "Caméra active : vise le QR code." : "Caméra active, mais ce navigateur ne sait pas lire les QR. Utilise Chrome récent."; if (window.BarcodeDetector) scan(); } catch (error) { status.textContent=`Caméra refusée (${error.name}). Autorise-la dans les réglages du navigateur puis réessaie.`; status.classList.add("is-error"); }
+
+    const stopCamera = (message = "Caméra arrêtée.") => {
+      window.clearTimeout(timer);
+      stream?.getTracks().forEach((track) => track.stop());
+      stream = null;
+      video.pause();
+      video.srcObject = null;
+      setCameraState(false);
+      setStatus(message);
+    };
+
+    const startCamera = async () => {
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        setStatus("La caméra exige HTTPS. Ouvre le site avec https://bde-ortmontreuil.fr, et non une adresse IP.", "error");
+        return;
+      }
+
+      stopCamera("Ouverture de la caméra…");
+      try {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: facingMode } },
+            audio: false,
+          });
+        } catch (preferredCameraError) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.muted = true;
+        video.srcObject = stream;
+        await video.play();
+        setCameraState(true);
+        setStatus("Caméra active : place le QR au centre du cadre.");
+        scan();
+      } catch (error) {
+        stream = null;
+        setCameraState(false);
+        const messages = {
+          NotAllowedError: "Accès caméra refusé. Autorise la caméra dans les réglages du navigateur, puis recharge la page.",
+          NotFoundError: "Aucune caméra utilisable n’a été trouvée sur cet appareil.",
+          NotReadableError: "La caméra est déjà utilisée par une autre application. Ferme-la puis réessaie.",
+          OverconstrainedError: "La caméra demandée n’est pas disponible sur cet appareil.",
+        };
+        setStatus(messages[error.name] || `Impossible d’ouvrir la caméra (${error.name || "erreur inconnue"}).`, "error");
+      }
+    };
+
+    startButton.addEventListener("click", startCamera);
+    switchButton.addEventListener("click", async () => {
+      facingMode = facingMode === "environment" ? "user" : "environment";
+      await startCamera();
     });
-    scanner.querySelector("[data-scanner-stop]").addEventListener("click", () => { clearTimeout(timer); stream?.getTracks().forEach(track=>track.stop()); stream=null; video.srcObject=null; status.textContent="Caméra arrêtée."; });
+    stopButton.addEventListener("click", () => stopCamera());
+    window.addEventListener("pagehide", () => stopCamera(), { once: true });
   }
 
   const teamFilter = document.querySelector("[data-team-filter]");
