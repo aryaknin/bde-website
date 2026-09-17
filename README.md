@@ -1,53 +1,59 @@
 # BDE ORT Sup
 
-Site local du bureau des élèves de l’ORT Sup à Montreuil.
+Site du Bureau des Élèves de l’ORT Sup Montreuil. C’est une application Flask rendue côté serveur avec des templates Jinja, une base SQLite et des fichiers statiques locaux. Elle est pensée pour le développement local puis le déploiement sur VPS.
 
-Le projet repose sur **Flask, des modèles HTML Jinja, du CSS, du JavaScript natif et SQLite**.
-Les pages sont rendues directement par Flask : les textes et les données sont présents dès
-la première réponse du serveur.
+Adresse : **43 Rue Raspail, 93100 Montreuil**.
 
-Adresse du campus : **43 Rue Raspail, 93100 Montreuil**.
+## Références réelles du projet
 
-## État du site
+Ces valeurs correspondent à l’installation actuelle. Les commandes ci-dessous peuvent être copiées-collées telles quelles depuis ce README.
 
-- Accueil : image, texte, indicateur de défilement animé, présentation, chiffres et événements.
-- Fenêtre de bienvenue à la première visite de l’accueil, puis masquée pendant 24 heures dans ce navigateur (cookie `bde_welcome_seen`), fermable par la croix, Échap ou un clic à l’extérieur.
-- Compteur de membres calculé à partir des profils BDE visibles, actualisé toutes les 10 secondes sur l’accueil et au retour dans l’onglet.
-- Navigation responsive, masquée en descendant et réaffichée en remontant, avec transitions de page.
-- Événements et boutique alimentés par SQLite.
-- Boutique avec fiches articles, photos, prix, stocks, paniers persistants et suivi des commandes.
-- Gestion du catalogue et des stocks réservée aux administrateurs et au superadministrateur.
-- Cartes d’événements ouvrant une fiche détaillée avec un accès au calendrier.
-- Thème bleu ORT, logos et polices servis localement.
-- Connexion par session, comptes membres, membres du BDE, administrateurs et superadministrateur protégé.
-- Inscription publique par identifiant, e-mail et mot de passe, limitée au rôle membre.
-- Création de comptes et gestion des droits depuis l’administration ; ajout d’événements par l’équipe BDE.
-- Suivi annuel des cotisations avec statut, montant, historique et gestion administrative.
-- Annuaire public du BDE avec portraits, fonctions, biographies, liens et fiches détaillées.
-- Modification de son profil public depuis l’espace personnel et gestion complète depuis l’administration.
-- Préparation d’un événement Google Agenda à partir d’un événement créé sur le site.
-- API JSON conservée pour les prochaines fonctionnalités.
+| Élément | Valeur actuelle |
+| --- | --- |
+| Dossier local | `/home/ary/Bureau/BTS SIO/1ère année/BDE/bde-website` |
+| Dépôt Git | `git@github.com:aryaknin/bde-website.git` |
+| Branche à déployer | `main` |
+| VPS | `51.210.254.136` |
+| Connexion SSH | `ubuntu@51.210.254.136` |
+| Dossier projet sur VPS | `/srv/bde-website` |
+| Utilisateur de l’application | `bde` |
+| Service Flask/Gunicorn | `bde-website` |
+| Base de production | `/srv/bde-website/db/bde-ort-sup.db` |
+| Fichiers envoyés | `/srv/bde-website/static/uploads/` |
+| Visuels/logos | `/srv/bde-website/static/images/` |
+| Application interne | `127.0.0.1:8000` |
+| Site public | `bde-ortmontreuil.fr` |
 
-Le calendrier mensuel Google est intégré dans un cadre responsive. Lorsqu’un événement est
-ouvert depuis la page Événements, sa fiche est mise en avant au-dessus du calendrier.
-Les commandes peuvent être préparées et suivies ; le paiement réel et la synchronisation
-Google OAuth restent à intégrer. Une commande ne devient jamais payée depuis le navigateur.
-L’espace cotisation est prêt à recevoir un lien HelloAsso, mais aucun bouton ne prétend
-effectuer un paiement tant que cette URL n’est pas configurée.
+Pour aller directement dans le projet local :
 
-Les chiffres renseignés sont 1 pôle, 105 ans d’histoire pour ORT France et une création en
-1921. Le nombre de membres correspond à la galerie BDE : les profils masqués sont exclus,
-les profils ajoutés manuellement sont inclus s’ils sont visibles. Les comptes membres
-simples sans profil BDE ne font pas partie de ce compteur. La cotisation est de 5 €.
-Les événements et les autres articles, e-mails et réseaux sociaux restent des exemples.
-La photo d’accueil est conservée comme visuel provisoire.
+```bash
+cd "/home/ary/Bureau/BTS SIO/1ère année/BDE/bde-website"
+```
+
+Pour ouvrir une session sur le VPS :
+
+```bash
+ssh ubuntu@51.210.254.136
+```
+
+## Fonctionnalités
+
+- Identité ORT Sup : thème bleu, logos ORT, polices et visuels locaux.
+- Accueil animé, navigation responsive et popup de bienvenue limitée à une fois toutes les 24 heures.
+- Événements SQLite, détails en fenêtre modale et lien vers le calendrier Google intégré.
+- Comptes avec les rôles `member`, `bde`, `admin` et `superadmin`.
+- Annuaire BDE : photo, fonction, biographie, liens personnels et visibilité contrôlable.
+- Espace personnel : profil, cotisation, panier et commandes.
+- Administration : comptes, droits, profils BDE, cotisations, événements, boutique et commandes.
+- Boutique : catalogue, photos, stock, panier persistant, réservation de stock et suivi des commandes.
+
+Le paiement en ligne n’est pas encore relié à un prestataire. Une commande est préparée et le stock peut être réservé, mais elle ne peut pas être déclarée payée depuis le navigateur.
 
 ## Installation locale
 
-Prérequis : Python 3.10 ou supérieur, pip et un navigateur. Pillow est installé avec les
-dépendances pour valider et convertir les portraits envoyés.
+Prérequis : Python 3.10+, `pip` et un navigateur. Node.js, npm et Prisma ne sont pas nécessaires.
 
-Depuis le dossier `bde-website` :
+Depuis le dossier du projet :
 
 ```bash
 python3 -m venv .venv
@@ -58,346 +64,308 @@ python3 backend/manage.py create-superadmin --username VotreIdentifiant
 python3 backend/app.py
 ```
 
-Ouvrir ensuite [http://127.0.0.1:5000](http://127.0.0.1:5000).
+Ouvre ensuite [http://127.0.0.1:5000](http://127.0.0.1:5000). Sous Windows, active l’environnement avec `.venv\Scripts\Activate.ps1`, puis utilise `python` si besoin.
 
-Sous Windows, activer l’environnement avec `.venv\Scripts\Activate.ps1`
-et utiliser `python` si `python3` n’est pas disponible. La dépendance `tzdata`
-est installée automatiquement sous Windows pour les dates dans le fuseau Europe/Paris.
-
-Le serveur reste limité à la machine locale. Pour changer de port sous Linux/macOS :
+Pour utiliser un autre port :
 
 ```bash
 FLASK_PORT=5001 python3 backend/app.py
 ```
 
-Sous PowerShell :
+La première exécution crée `db/bde-ort-sup.db`, les tables nécessaires et un secret de session local dans `db/.session-secret`. Ne versionne jamais ces fichiers. `backend/seed.py` ajoute des données de démonstration uniquement quand les collections sont vides : ne l’utilise pas sur une base de production existante.
 
-```powershell
-$env:FLASK_PORT = "5001"
-python backend/app.py
+### Routine locale de développement
+
+À chaque reprise de travail, utilise cette séquence :
+
+```bash
+cd "/home/ary/Bureau/BTS SIO/1ère année/BDE/bde-website"
+source .venv/bin/activate
+./scripts/sync-production-data.sh
+python3 backend/app.py
 ```
 
-Aucun fichier `.env` n’est chargé automatiquement. Aucune installation Node/npm ni
-commande de compilation n’est nécessaire.
+La synchronisation demande le mot de passe `sudo` du VPS si nécessaire. Laisse le terminal Flask ouvert pendant le développement, puis utilise un second terminal pour Git ou les tests.
+
+Pour vérifier rapidement le statut local et lancer les tests :
+
+```bash
+cd "/home/ary/Bureau/BTS SIO/1ère année/BDE/bde-website"
+git status
+source .venv/bin/activate
+python3 -m unittest discover -s tests -v
+```
+
+## Tests
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+Les tests couvrent les rôles, événements, profils BDE, panier, stock, commandes et protections de paiement.
 
 ## Organisation
 
 ```text
 bde-website/
-├── backend/
-│   ├── app.py                 # Routes des pages, API et formatage des dates/prix
-│   ├── database.py            # Connexion SQLite, schéma, réglages et requêtes
-│   ├── manage.py              # Création interactive du superadministrateur
-│   ├── seed.py                # Données de démonstration
-│   ├── shop.py                # Routes boutique, formulaires et photos des articles
-│   ├── shop_store.py          # Paniers, commandes, réservations et futur paiement vérifié
-│   └── requirements.txt       # Dépendances Python
-├── db/
-│   └── bde-ort-sup.db          # Base locale, ignorée par Git
-├── pages/
-│   ├── base.html              # Structure HTML commune
-│   ├── partials/
-│   │   ├── header.html        # Navigation
-│   │   ├── footer.html        # Contacts et liens
-│   │   ├── events.html        # Cartes d’événements communes
-│   │   └── event-form.html    # Fenêtre admin de création d’événement
-│   ├── shop/                 # Fiches articles, panier, commandes et administration
-│   ├── index.html
-│   ├── evenements.html
-│   ├── billetterie.html
-│   ├── calendrier.html
-│   ├── bde.html
-│   ├── login.html
-│   ├── register.html
-│   ├── account.html
-│   ├── admin.html
-│   ├── error.html
-│   ├── demande-domaine.html
-│   └── 404.html
+├── backend/                 # Flask, SQLite et logique métier
+│   ├── app.py               # Routes générales et point d’entrée
+│   ├── database.py          # Schéma, migrations et requêtes
+│   ├── shop.py              # Routes boutique
+│   ├── shop_store.py        # Paniers, commandes, réservations
+│   ├── manage.py            # Commandes d’administration
+│   ├── seed.py              # Données de démonstration
+│   └── requirements.txt
+├── db/                      # SQLite et secret local, ignorés par Git
+├── pages/                   # Templates Jinja
+│   ├── partials/            # Navigation, pied de page, composants événements
+│   └── shop/                # Catalogue, panier et gestion boutique
 ├── static/
-│   ├── css/site.css           # Styles, thème et responsive
-│   ├── css/shop.css           # Catalogue, panier et gestion boutique
-│   ├── js/site.js             # Navigation et fenêtres de dialogue
-│   ├── fonts/                 # Inter et Bricolage Grotesque, variantes latines
-│   ├── images/                # Deux logos ORT et la photo d’accueil
-│   └── uploads/               # members/ et products/ : images ignorées par Git
-├── tests/test_site.py         # Vérifications sur une base temporaire
-├── tests/test_shop.py         # Stocks, rôles, paniers, commandes et paiement interne
-├── .gitignore
+│   ├── css/                 # site.css et shop.css
+│   ├── js/site.js           # Interactions et transitions
+│   ├── fonts/               # Polices locales
+│   ├── images/              # Logos et visuels éditoriaux
+│   └── uploads/             # Portraits et images produits, ignorés par Git
+├── scripts/sync-production-data.sh
+├── tests/
+├── DEPLOYMENT.md            # Guide VPS détaillé
 └── README.md
 ```
 
-Les fichiers HTML sont indentés et répartis par page. Jinja permet de partager les blocs
-communs et d’insérer les valeurs provenant de SQLite. Il faut ouvrir les pages via Flask :
-un double-clic sur un fichier HTML ne peut pas interpréter les balises Jinja.
+## Pages
 
-Les URL des pages restent `/evenements.html`, `/calendrier.html`, etc.
-Les ressources utilisent désormais le préfixe standard `/static/`, par exemple
-`/static/css/site.css`. Les modèles communs et les fichiers Python/SQLite ne sont pas
-exposés comme des pages publiques.
+| Page | Adresse | Rôle |
+| --- | --- | --- |
+| Accueil | `/index.html` | Présentation, statistiques et événements à venir. |
+| Boutique | `/billetterie.html` | Catalogue, produits et cotisations. |
+| Événements | `/evenements.html` | Liste, détail et accès calendrier. |
+| Calendrier | `/calendrier.html` | Google Calendar public intégré. |
+| BDE | `/bde.html` | Annuaire public des membres du BDE. |
+| Connexion / inscription | `/login.html`, `/register.html` | Authentification. |
+| Compte | `/compte.html` | Profil, cotisation, panier et commandes. |
+| Administration | `/admin.html` | Gestion selon les permissions. |
 
-## Où faire les prochaines modifications
+La navigation se masque lors d’un défilement vers le bas et réapparaît en remontant. Les liens restent utilisables à toute position de la page.
 
-| Modification | Fichier |
+## Rôles
+
+| Rôle | Permissions |
 | --- | --- |
-| Couleurs, marges, typographie, mobile | `static/css/site.css` |
-| Structure de l’accueil et pop-up | `pages/index.html` |
-| Navigation, liens et contacts | `pages/partials/header.html`, `footer.html` |
-| Contenu d’une page | Le fichier correspondant dans `pages/` |
-| Interactions dans le navigateur | `static/js/site.js` |
-| Routes et données fournies aux pages | `backend/app.py` |
-| Schéma SQLite et requêtes | `backend/database.py` |
-| Données de démonstration | `backend/seed.py` |
+| `member` | Compte, profil, panier, commandes et cotisation. |
+| `bde` | Permissions membre, profil BDE et ajout d’événements. |
+| `admin` | Comptes, profils BDE, cotisations, événements, catalogue, stocks et commandes. |
+| `superadmin` | Tous les droits et gestion du compte superadministrateur protégé. |
 
-Les styles ne sont plus injectés par JavaScript. Les textes, logos et compteurs sont rendus
-par Flask ; JavaScript rafraîchit uniquement les compteurs d’accueil depuis l’API. L’affichage des données fonctionne
-aussi sans JavaScript ; le menu compact, les fenêtres et les transitions enrichies utilisent ce script.
+L’inscription publique crée uniquement des comptes `member`. Un administrateur peut attribuer les rôles BDE et administrateur, mais ne peut pas modifier le superadministrateur protégé. N’écris jamais des identifiants, mots de passe ou clés API dans Git, ce fichier ou une capture publique.
 
-## Base de données
+Les comptes BDE, administrateurs et superadministrateurs peuvent apparaître dans l’annuaire. Les administrateurs peuvent également créer un profil manuel et définir sa visibilité, sa photo, sa fonction, sa biographie et ses liens.
 
-Le fichier est `db/bde-ort-sup.db`. Il contient :
+## Base de données et contenu
 
-| Table | Contenu |
-| --- | --- |
-| `site_settings` | Nom, slogan, adresse, contacts, liens, compteurs |
-| `associations` | Organisateurs internes liés aux événements et articles |
-| `events` | Événements, horaires, lieux, organisateur facultatif, capacités, prix et lien Google |
-| `products` | Articles, descriptions, stocks et prix |
-| `shop_carts`, `shop_cart_items` | Paniers invités et comptes, avec leurs quantités |
-| `shop_orders`, `shop_order_items` | Commandes, états, réservations et lignes figées |
-| `users` | Identifiants, e-mails, hash des mots de passe, rôles et protection du supercompte |
-| `bde_profiles` | Profils publics, fonctions, biographies, liens, photos, ordre et visibilité |
-| `contributions` | Cotisations annuelles, montants, statuts, dates, références et notes internes |
-| `schema_migrations` | Mises à jour de données déjà appliquées, pour ne pas les répéter au démarrage |
+La base locale par défaut est `db/bde-ort-sup.db`. Elle contient notamment utilisateurs, profils BDE, événements, cotisations, produits, paniers et commandes. `backend/database.py` initialise les tables et applique les évolutions légères au démarrage.
 
-Les prix sont enregistrés en centimes. Les dates sont au format ISO 8601 avec
-décalage horaire, puis affichées en français dans le fuseau Europe/Paris.
-Seuls les événements publiés et les produits actifs sont affichés. L’accueil montre
-au maximum trois événements à venir ou en cours ; la page Événements présente tous les
-événements publiés. Le calendrier mensuel est fourni par Google Agenda.
+Les statistiques de l’accueil utilisent ces données :
 
-### Modifier les valeurs affichées
+- **Membres** : profils BDE visibles uniquement ; un profil masqué n’est pas compté.
+- **Pôles** : 1.
+- **ORT France** : 105 ans d’histoire, depuis 1921.
+- **Cotisation BDE** : 5 €.
 
-Ouvrir la base avec un éditeur SQLite et modifier les lignes souhaitées, puis recharger
-la page. Exemple SQL :
+L’organisateur par défaut d’un événement est **BDE ORT Sup**. Il peut être remplacé ponctuellement dans le formulaire d’événement.
 
-```sql
-UPDATE site_settings SET value = '1' WHERE key = 'poles_count';
-UPDATE site_settings SET value = '1921' WHERE key = 'institution_since';
-UPDATE site_settings SET value = '105' WHERE key = 'years_count';
-UPDATE events SET title = 'Nouvelle soirée du BDE' WHERE id = 1;
-UPDATE events SET organizer_name = 'Partenaire exceptionnel' WHERE id = 1;
-UPDATE events
-SET google_calendar_url = 'https://calendar.google.com/calendar/event?eid=...'
-WHERE id = 1;
-UPDATE site_settings SET value = '500' WHERE key = 'membership_fee_cents';
-UPDATE site_settings
-SET value = 'https://www.helloasso.com/associations/votre-bde/adhesions/cotisation'
-WHERE key = 'helloasso_membership_url';
-```
+## Images et téléversements
 
-`membership_fee_cents` est exprimé en centimes : `500` correspond à 5 €. Tant que
-`helloasso_membership_url` est vide, l’espace personnel affiche clairement que le paiement
-en ligne n’est pas encore disponible.
+`static/images/` contient les logos et visuels éditoriaux. `static/uploads/members/` contient les portraits BDE et `static/uploads/products/` les images produits. Les chemins de ces images sont enregistrés dans SQLite.
 
-L’organisateur affiché est `BDE ORT Sup` lorsque `organizer_name` est vide ou vaut `NULL`.
-Ce champ ne doit être renseigné que lorsqu’un événement est exceptionnellement organisé
-par une autre structure ; aucune page séparée d’organisateurs n’est nécessaire.
+Copier la BDD seule ne suffit pas : sans `static/uploads/` et `static/images/`, les photos référencées provoqueront des erreurs 404. Sauvegarde toujours la base et ces dossiers ensemble.
 
-Le champ `google_calendar_url` est facultatif. Il peut contenir le lien public publié depuis
-Google Agenda pour ouvrir exactement l’événement correspondant. Sans ce lien, le bouton de
-la page Calendrier lance une recherche Google Agenda à partir du titre enregistré dans SQLite.
-Le contenu de l’iframe Google est isolé du site : le navigateur ne permet pas au JavaScript
-local de sélectionner automatiquement un événement à l’intérieur de cette iframe.
-Après la création d’un événement par un administrateur ou un membre du BDE, le site fournit
-également un lien Google Agenda prérempli. La personne doit confirmer sa création dans Google. Une écriture
-automatique nécessitera ultérieurement Google Calendar API, OAuth et des identifiants dédiés.
+## Événements et calendrier Google
 
-## Comptes et autorisations
+Les événements affichés sur le site proviennent de SQLite. Leur fiche affiche titre, description, date, lieu et organisateur. Le bouton « Voir dans le calendrier » ouvre le calendrier Google et tente une recherche par titre.
 
-Quatre niveaux sont disponibles :
+Le calendrier actuel est une intégration publique par `iframe`. La création automatique d’événements dans Google nécessite à terme OAuth Google, un compte de service ou les autorisations appropriées : aucun mot de passe personnel ne doit être placé dans le code.
 
-- `member` : accès à l’espace personnel ;
-- `bde` : profil public modifiable et création d’événements, sans gestion des comptes ;
-- `admin` : création d’événements, création de comptes et modification des rôles ;
-- `superadmin` : mêmes droits, compte protégé contre toute modification depuis l’administration.
+## Boutique et paiement
 
-Les administrateurs peuvent attribuer les rôles membre, membre du BDE ou administrateur.
-Ils ne peuvent ni modifier ni rétrograder le superadministrateur protégé. Les mots de passe
-sont hashés par Werkzeug et ne sont jamais affichés dans l’administration.
+Les administrateurs et superadministrateurs créent et modifient les produits : titre, description, prix, stock, visibilité et image. Un produit peut être un article ou une cotisation.
 
-La page `/register.html` permet à un étudiant de créer son propre compte. Le serveur impose
-toujours le rôle `member`, même si une autre valeur est envoyée manuellement. L’e-mail et
-l’identifiant sont uniques, le mot de passe doit contenir au moins huit caractères et le
-nouveau compte reçoit automatiquement sa cotisation pour l’année scolaire en cours. La
-connexion accepte ensuite l’identifiant ou l’adresse e-mail.
+Le panier persiste pour un visiteur puis est fusionné au compte à la connexion. La validation d’une commande réserve le stock temporairement. Le paiement reste volontairement désactivé jusqu’au choix d’un prestataire.
 
-L’espace personnel présente la cotisation actuelle et l’historique. Les statuts disponibles
-sont `due` (à régler), `pending` (en attente), `paid` (payée) et `exempt` (exonérée). L’onglet
-« Cotisations » de l’administration permet d’ajouter une année et de corriger le montant,
-le statut, la date, le moyen de paiement, la référence externe et une note interne. Un
-administrateur ordinaire ne peut pas modifier les cotisations du supercompte protégé.
+Quand HelloAsso, Stripe ou un autre service sera choisi, seul un webhook authentifié côté serveur devra confirmer le paiement : validation de signature, référence, montant et devise avant de marquer une commande payée. Ne crée pas de bouton qui simule un paiement.
 
-Les comptes `bde`, `admin` et `superadmin` obtiennent automatiquement un profil sur la page
-BDE. Un administrateur peut le masquer, modifier sa fonction et son ordre, ou créer un profil
-manuel sans compte. Un profil lié à un compte se masque au lieu d’être supprimé. Un
-administrateur ordinaire ne peut pas modifier le profil du supercompte protégé.
+## Récupérer la BDD et les assets du VPS
 
-Depuis son espace, chaque personne de l’équipe peut modifier son nom public, sa biographie,
-ses liens et son portrait. Les images JPEG, PNG et WebP de moins de 8 Mo sont recadrées au
-format portrait et converties en WebP côté serveur. Les fichiers d’upload sont exclus de Git :
-ils devront être sauvegardés séparément et placés sur un stockage persistant en production.
-
-Pour créer le premier supercompte dans une nouvelle base :
+Pour mettre à jour ton environnement local avec les données de production et toutes les images associées, arrête d’abord Flask local puis lance :
 
 ```bash
-python3 backend/manage.py create-superadmin --username Ary
+cd "/home/ary/Bureau/BTS SIO/1ère année/BDE/bde-website"
+./scripts/sync-production-data.sh
 ```
 
-La commande demande le mot de passe deux fois sans l’afficher. Le secret de signature des
-sessions est généré dans `db/.session-secret`, ignoré par Git. En hébergement, définir plutôt
-`BDE_SECRET_KEY` et activer les cookies HTTPS avec `BDE_COOKIE_SECURE=1`.
+Le script récupère une copie SQLite ainsi que `static/uploads/` et `static/images/`, sans toucher à ton code local. Il crée une sauvegarde dans `local-backups/production-sync-...`, vérifie l’intégrité SQLite, les comptes d’objets et la présence des images référencées avant d’écraser les données locales. Une base distante vide ou une archive d’assets incomplète est refusée.
 
-Les réglages d’accueil sont `poles_count`, `years_count` et `institution_since`.
-`members_count` est calculé à chaque lecture par un `COUNT(*)` des profils BDE dont
-`is_visible = 1`. Une ancienne valeur fixe dans les réglages n’a plus d’effet.
-Une valeur de zéro est conservée et affichée. Pour retirer une personne du compteur,
-utiliser « Masquer » dans Administration → Page BDE.
+Le script utilise déjà les valeurs réelles suivantes :
 
-Les valeurs par défaut se trouvent dans `DEFAULT_SETTINGS` dans `backend/database.py`.
-Modifier ces valeurs dans le code ne remplace pas un réglage déjà enregistré.
-De même, modifier `backend/seed.py` ne met pas à jour les lignes d’une base existante.
-Une migration ponctuelle applique les valeurs validées le 16 septembre 2026, corrige
-l’adhésion de la boutique et les anciennes échéances à régler de 15 € pour 2026-2027.
-Les cotisations payées, exonérées, en attente et celles des autres années sont conservées.
+```text
+BDE_VPS_HOST=ubuntu@51.210.254.136
+BDE_VPS_PROJECT=/srv/bde-website
+BDE_VPS_ARCHIVE_DIR=/home/ubuntu
+```
 
-### Initialiser ou conserver les données
+Pré-requis : accès SSH à `ubuntu@51.210.254.136` et autorisation `sudo` sur le VPS. Cette version explicite est strictement équivalente à la commande courte et peut être utilisée telle quelle :
 
-`python3 backend/seed.py` crée les tables et remplit les collections encore entièrement vides.
-Il ne remplace pas et ne duplique pas une collection qui contient déjà des lignes.
-Démarrer Flask crée au besoin les tables et réglages, sans ajouter d’événements ni d’articles.
+```bash
+BDE_VPS_HOST="ubuntu@51.210.254.136" \
+BDE_VPS_PROJECT="/srv/bde-website" \
+BDE_VPS_ARCHIVE_DIR="/home/ubuntu" \
+./scripts/sync-production-data.sh
+```
 
-Pour repartir des exemples, arrêter Flask, sauvegarder la base ailleurs et déplacer
-l’ancien fichier hors du dossier `db/`, puis exécuter à nouveau le script de remplissage.
-Le nettoyage du projet n’a pas réinitialisé la base existante.
+Cette commande synchronise les données **du VPS vers le local**. Elle ne déploie aucun code. Utilise Git pour le code et consulte [DEPLOYMENT.md](DEPLOYMENT.md) pour la procédure de déploiement complète.
+
+### Ce que fait exactement le script
+
+1. Il crée sur le VPS une copie SQLite cohérente avec `VACUUM INTO`, sans arrêter le site.
+2. Il archive `static/uploads/` **et** `static/images/`.
+3. Il télécharge cette archive sur le poste local et vérifie `PRAGMA integrity_check`.
+4. Il compare les nombres d’utilisateurs, événements, produits et profils BDE.
+5. Il vérifie que chaque image de profil ou produit enregistrée dans la base existe dans l’archive.
+6. Il sauvegarde l’ancienne BDD locale et les anciens assets dans `local-backups/production-sync-AAAAmmjj-HHMMSS/`.
+7. Seulement après ces vérifications, il remplace `db/bde-ort-sup.db` et extrait les images.
+
+Si une étape échoue, la base locale n’est pas remplacée. Pour restaurer manuellement la dernière sauvegarde locale, remplace `DATE_DE_LA_SAUVEGARDE` par le nom réel du dossier :
+
+```bash
+cd "/home/ary/Bureau/BTS SIO/1ère année/BDE/bde-website"
+cp "local-backups/production-sync-DATE_DE_LA_SAUVEGARDE/bde-ort-sup.db" db/bde-ort-sup.db
+tar -xzf "local-backups/production-sync-DATE_DE_LA_SAUVEGARDE/static-data.tar.gz" -C static
+```
+
+## Déploiement
+
+Le déploiement de référence utilise Gunicorn derrière Nginx, avec un utilisateur système dédié à l’application. Le guide [DEPLOYMENT.md](DEPLOYMENT.md) couvre la configuration VPS, systemd, Nginx, HTTPS, droits sur les uploads, sauvegardes et mises à jour.
+
+Le code se met à jour par Git sur le serveur ; la base SQLite, les secrets et les fichiers téléversés restent hors Git. Fais une sauvegarde de la BDD et des assets avant toute mise à jour importante.
+
+### Déployer une modification de code
+
+Exécute d’abord les tests, puis envoie le code depuis le poste local :
+
+```bash
+cd "/home/ary/Bureau/BTS SIO/1ère année/BDE/bde-website"
+source .venv/bin/activate
+python3 -m unittest discover -s tests -v
+git switch main
+git add .
+git commit -m "Décrire la modification"
+git push origin main
+```
+
+Ensuite, déploie sur le VPS :
+
+```bash
+ssh ubuntu@51.210.254.136
+sudo -u bde git -C /srv/bde-website pull --ff-only
+sudo -u bde /srv/bde-website/.venv/bin/pip install -r /srv/bde-website/backend/requirements.txt
+sudo systemctl restart bde-website
+sudo systemctl status bde-website --no-pager
+exit
+```
+
+Le statut final doit indiquer `active (running)`. `git pull --ff-only` est volontaire : il refuse un merge inattendu sur le serveur plutôt que de modifier le code de manière ambiguë.
+
+### Sauvegarder la production avant une mise à jour risquée
+
+Cette commande crée une copie cohérente de la BDD et une archive des images dans `/home/ubuntu/bde-backups/` sur le VPS :
+
+```bash
+ssh ubuntu@51.210.254.136 '
+  set -e
+  DATE=$(date +%Y%m%d-%H%M%S)
+  mkdir -p /home/ubuntu/bde-backups
+  sudo sqlite3 /srv/bde-website/db/bde-ort-sup.db ".backup /home/ubuntu/bde-backups/bde-ort-sup-$DATE.db"
+  sudo tar -C /srv/bde-website/static -czf /home/ubuntu/bde-backups/static-$DATE.tar.gz uploads images
+  sudo chown ubuntu:ubuntu /home/ubuntu/bde-backups/bde-ort-sup-$DATE.db /home/ubuntu/bde-backups/static-$DATE.tar.gz
+  ls -lh /home/ubuntu/bde-backups/*$DATE*
+'
+```
+
+Pour recopier ensuite une sauvegarde précise vers le poste local, remplace `DATE` par la date affichée par la commande précédente :
+
+```bash
+cd "/home/ary/Bureau/BTS SIO/1ère année/BDE/bde-website"
+mkdir -p local-backups/manuel-DATE
+scp ubuntu@51.210.254.136:/home/ubuntu/bde-backups/bde-ort-sup-DATE.db local-backups/manuel-DATE/
+scp ubuntu@51.210.254.136:/home/ubuntu/bde-backups/static-DATE.tar.gz local-backups/manuel-DATE/
+```
+
+### Vérifier le serveur et diagnostiquer une erreur
+
+```bash
+ssh ubuntu@51.210.254.136 '
+  sudo systemctl status bde-website nginx --no-pager
+  sudo journalctl -u bde-website -n 100 --no-pager
+  sudo nginx -t
+  sudo sqlite3 /srv/bde-website/db/bde-ort-sup.db "PRAGMA integrity_check;"
+  sudo du -sh /srv/bde-website/db /srv/bde-website/static/uploads /srv/bde-website/static/images
+'
+```
+
+En cas de `502 Bad Gateway`, relance uniquement le service puis lis les journaux :
+
+```bash
+ssh ubuntu@51.210.254.136 'sudo systemctl restart bde-website && sudo journalctl -u bde-website -n 100 --no-pager'
+```
+
+En cas d’images 404 alors que la BDD contient les profils, vérifie les fichiers et leurs droits :
+
+```bash
+ssh ubuntu@51.210.254.136 '
+  sudo find /srv/bde-website/static/uploads -type f | head -30
+  sudo setfacl -m u:www-data:--x /srv/bde-website
+  sudo setfacl -R -m u:www-data:rX /srv/bde-website/static
+  sudo systemctl reload nginx
+'
+```
+
+### Retour arrière du code
+
+Cette procédure restaure seulement le code, pas la BDD. Commence par identifier le commit stable :
+
+```bash
+ssh ubuntu@51.210.254.136 'sudo -u bde git -C /srv/bde-website log --oneline -10'
+```
+
+Après avoir choisi un hash, remplace `HASH_DU_COMMIT_STABLE` :
+
+```bash
+ssh ubuntu@51.210.254.136 '
+  sudo -u bde git -C /srv/bde-website checkout HASH_DU_COMMIT_STABLE
+  sudo systemctl restart bde-website
+  sudo systemctl status bde-website --no-pager
+'
+```
+
+Cette commande détache `HEAD` sur le serveur. Corrige ensuite la branche `main` localement et redéploie une version saine, sinon le prochain `git pull` ne pourra pas reprendre normalement.
 
 ## API JSON
 
-| Route GET | Réponse |
-| --- | --- |
-| `/api/health` | État du serveur |
-| `/api/site` | Réglages du site |
-| `/api/events` | Événements publiés avec leur organisateur |
-| `/api/products` | Produits actifs |
-| `/api/stats` | Nombre total d’événements et de produits |
-| `/api/home-stats` | Nombre de profils BDE visibles, pôles et années d’histoire, sans cache |
-
-Les pages et l’API utilisent les mêmes requêtes dans `backend/database.py`. Les routes qui
-écrivent des comptes ou des événements sont protégées par session, rôle et jeton CSRF.
-
-## Boutique et commandes
-
-### Gestion par les administrateurs
-
-Depuis **Mon compte → Gérer la boutique**, ou **Administration → Boutique** :
-
-- Ajouter un article avec titre, description, image JPEG/PNG/WebP, prix en euros et stock.
-- Modifier les informations et remplacer l’image (8 Mo maximum, conversion WebP jusqu’à 1 600 px).
-- Mettre à jour directement le stock : **0 = épuisé**, **vide = illimité**.
-- Masquer/publier un article sans supprimer ses anciennes commandes.
-- Consulter toutes les commandes et, après paiement vérifié, les marquer prêtes puis retirées.
-
-Seuls `admin` et `superadmin` ont ces droits. Le rôle `bde` ne gère pas la boutique.
-Les articles déjà présents sont conservés ; ceux sans photo affichent un visuel d’attente.
-Pour des variantes (par exemple S, M, L), créer un article par variante afin de suivre
-chaque stock séparément. Le type « Cotisation » renvoie vers l’espace cotisations :
-il n’est pas commandable dans le panier, pour éviter une adhésion non rattachée au compte.
-
-### Parcours client
-
-1. Parcourir `/billetterie.html`, ouvrir une fiche et ajouter les quantités souhaitées.
-2. Modifier/retirer les articles dans `/panier.html` ; tous les totaux sont recalculés côté serveur.
-3. Se connecter ou créer un compte pour accéder au récapitulatif `/commande.html`.
-4. Préparer la commande : elle apparaît dans `/commandes.html` et **attend un paiement**.
-5. Après le futur paiement vérifié, retrait gratuit au BDE, à l’adresse du campus.
-
-Le panier invité est enregistré en SQLite, identifié par un cookie opaque `bde_cart`
-HttpOnly/SameSite=Lax de **90 jours** (seul son hash est en base). Le panier d’un compte
-est conservé en base, fusionné avec le panier invité à la connexion ou à l’inscription,
-et accessible sur les autres appareils après connexion. La déconnexion ne l’expose pas
-au visiteur suivant. Effacer les cookies fait perdre l’accès à un panier invité.
-
-Le panier seul ne réserve aucun stock. La préparation réserve les articles **30 minutes**,
-avec une vérification atomique SQLite pour empêcher deux commandes d’obtenir le dernier
-exemplaire. Les réservations expirées sont immédiatement exclues du stock réservé ; leur
-statut est actualisé à la lecture des commandes. Aucun cron n’est nécessaire en local.
-L’annulation libère aussi les réservations. Le stock physique n’est décrémenté qu’après
-confirmation de paiement. Un admin ne peut pas le réduire sous les réservations actives.
-
-Les prix et intitulés de la commande sont figés ; une modification ultérieure du catalogue
-ne change pas l’historique. Si un prix change entre le récapitulatif et sa validation, la
-commande est refusée et le client doit revoir le panier. Un double clic ne duplique pas
-la commande. Limites : 99 unités par article, 50 articles distincts par panier et trois
-commandes en attente par compte.
-
-### Paiement : volontairement désactivé
-
-**Aucun paiement réel n’est disponible.** Le bouton l’indique explicitement et les
-commandes de préparation expirent sans être confirmées. Aucun formulaire ne collecte
-de carte bancaire et aucune route ne permet de déclarer soi-même un achat payé.
-
-`shop_store.confirm_verified_payment(...)` est un point d’intégration **interne**, testé
-sur des bases temporaires et non exposé en HTTP. Quand le prestataire sera choisi, il
-faudra ajouter la création de session de paiement et un webhook authentifié : vérification
-de signature, statut réellement encaissé, compte marchand, commande, montant en centimes,
-devise EUR et référence unique. Cette fonction valide montant/devise et assure l’idempotence
-ainsi que la déduction atomique du stock. Elle ne vérifie pas elle-même une signature de prestataire.
-Le retour du navigateur depuis le paiement ne doit jamais suffire à confirmer une commande.
-Les remboursements, paiements tardifs après expiration et notifications restent à intégrer
-avec ce prestataire avant toute mise en production.
-
-Sauvegarder ensemble `db/` et `static/uploads/`, dont les photos produits ne sont pas dans Git.
-Les migrations ajoutent les tables automatiquement au démarrage sans réinitialiser la base.
-
-## Vérifications
-
-```bash
-python3 -B -m unittest discover -s tests -v
+```text
+GET /api/health
+GET /api/site
+GET /api/events
+GET /api/products
+GET /api/stats
+GET /api/home-stats
 ```
 
-Ces vérifications utilisent une base SQLite temporaire ; elles ne modifient pas la base locale.
-Elles contrôlent les pages et ressources, les données rendues dans le HTML, l’échappement,
-les filtres de l’API, l’inscription, la connexion, les quatre rôles, la protection du
-supercompte, les jetons CSRF, la création d’événements, les cotisations, les profils publics
-et la validation des portraits. Les tests boutique couvrent aussi les images, le panier
-persistant et sa fusion, les permissions admin, les ruptures de stock, deux commandes
-simultanées, les changements de prix, les doubles soumissions, l’expiration, l’annulation,
-la confidentialité des commandes et l’idempotence du futur paiement vérifié.
+Ces endpoints servent aux futures intégrations, mais ne remplacent jamais les contrôles de droits Flask pour les opérations d’écriture.
 
-## Nettoyage effectué
+## Sécurité et dépannage
 
-Le projet n’utilise plus les chunks Next.js/React/Turbopack ni les feuilles de styles compilées.
-Les données d’hydratation, commentaires du miroir, scripts Cloudflare, anciens membres,
-anciens événements codés en dur, liens d’authentification et intégrations externes du clone
-ont été retirés. Les faux PDF et la fausse vidéo (fichiers contenant « 404 Not Found »),
-les photos d’événements inutilisées et l’ancienne page d’association à identifiant fixe
-ont également été supprimés.
+- Utilise des mots de passe uniques pour les comptes avec privilèges.
+- En production, active HTTPS et conserve les secrets dans des variables d’environnement ou fichiers protégés hors dépôt.
+- Vérifie les permissions de `static/uploads/` : l’application doit écrire dedans, sans ouvrir le dossier à tous les utilisateurs système.
+- Teste une restauration de sauvegarde avant d’en dépendre.
 
-La photo d’accueil, les deux logos et les deux polices utilisées ont été conservés et rangés
-dans `static/`. Les réglages personnels d’Obsidian sont conservés et ignorés par Git.
-
-Les documents officiels, les référents et les membres ORT seront ajoutés avec leurs vraies
-informations. Aucun ancien document n’est présenté comme un document ORT.
-
-## Suite du développement
-
-1. Renseigner les vrais textes, images, contacts et chiffres.
-2. Renseigner les fonctions, biographies, liens et véritables portraits des membres du BDE.
-3. Configurer OAuth si la création automatique dans Google Agenda devient nécessaire.
-4. Choisir le prestataire, relier les cotisations et les paiements boutique avec webhooks vérifiés.
-5. Choisir la base et l’hébergement de production, puis préparer le déploiement.
-
-Le serveur Flask de développement ne doit pas être utilisé tel quel en production.
-La configuration HTTPS, les secrets, les sauvegardes et un serveur applicatif de production
-seront préparés lors de cette étape. Ne pas enregistrer de secrets ni de données personnelles
-d’étudiants dans les fichiers HTML ou dans Git.
+Si les données locales disparaissent, vérifie `db/bde-ort-sup.db`, relance Flask et restaure une copie dans `local-backups/` si nécessaire. Si les portraits ou produits renvoient une 404 après un import, relance `./scripts/sync-production-data.sh` pour récupérer aussi les assets. Si le calendrier est vide, vérifie qu’il est public et qu’aucune extension navigateur ne bloque les contenus intégrés.
