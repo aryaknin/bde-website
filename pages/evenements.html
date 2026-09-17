@@ -24,6 +24,21 @@
       {% include "partials/events.html" %}
     </div>
   </section>
+  <section class="section project-callout-section" aria-label="Proposer un projet">
+    <div class="container">
+      <div class="project-callout">
+        <div>
+          <p class="eyebrow">Une idée pour le campus ?</p>
+          <h2>Ton projet peut devenir le prochain rendez-vous.</h2>
+          <p>Un tournoi, un atelier, une initiative ou une soirée à imaginer ensemble : le BDE est à l’écoute.</p>
+        </div>
+        <div class="project-callout__actions">
+          <a class="button button-light" href="{{ url_for('project_request') }}">Proposer un projet <span aria-hidden="true">→</span></a>
+          <a class="text-link text-link--light" href="{{ url_for('contact') }}">Contacter le BDE</a>
+        </div>
+      </div>
+    </div>
+  </section>
 {% endblock %}
 
 {% block dialogs %}

@@ -88,6 +88,31 @@ BDE_SECRET_KEY=<valeur-aléatoire-secrète>
 BDE_COOKIE_SECURE=1
 ```
 
+### Envoi des formulaires contact et projet
+
+Les pages `contact.html` et `demande-domaine.html` transmettent leurs messages à `contact@bde-ortmontreuil.fr`. L’envoi est volontairement désactivé tant que le SMTP n’est pas renseigné : aucune information de messagerie n’est stockée dans Git.
+
+Ajouter au fichier `/etc/bde-website.env` les paramètres fournis par le prestataire de messagerie (remplacer uniquement les valeurs entre chevrons) :
+
+```dotenv
+BDE_CONTACT_RECIPIENT=contact@bde-ortmontreuil.fr
+BDE_SMTP_HOST=<serveur-smtp>
+BDE_SMTP_PORT=587
+BDE_SMTP_USERNAME=<identifiant-smtp>
+BDE_SMTP_PASSWORD=<mot-de-passe-ou-mot-de-passe-application>
+BDE_SMTP_FROM=contact@bde-ortmontreuil.fr
+BDE_SMTP_STARTTLS=1
+```
+
+Si le fournisseur impose SMTP sur le port 465, utiliser `BDE_SMTP_PORT=465` : la connexion SSL est alors utilisée automatiquement. Après la modification, appliquer la configuration puis vérifier les journaux :
+
+```bash
+sudo systemctl restart bde-website
+sudo journalctl -u bde-website -n 50 --no-pager
+```
+
+Le champ expéditeur doit être autorisé par le fournisseur SMTP. Pour Gmail, Microsoft 365 ou OVH Mail, utiliser un **mot de passe d’application** si le fournisseur le demande, jamais le mot de passe personnel du compte.
+
 Créer ou remplacer le fichier sans afficher le secret :
 
 ```bash

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow">Une question ?</p>
+      <h1>Contacte le <em>BDE</em></h1>
+      <p>Une demande, un retour ou une idée à nous partager : écris-nous directement.</p>
+    </div>
+  </section>
+  <section class="section inquiry-section">
+    <div class="container inquiry-layout">
+      <aside class="inquiry-intro">
+        <p class="eyebrow">BDE ORT Sup</p>
+        <h2>Restons en contact.</h2>
+        <p>Chaque message est transmis à l’équipe du BDE. Pour une idée de campus complète, utilise plutôt la page de proposition de projet.</p>
+        <a class="text-link" href="{{ url_for('project_request') }}">Proposer un projet <span aria-hidden="true">→</span></a>
+      </aside>
+      <form class="inquiry-form" method="post" novalidate>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-honeypot" aria-hidden="true">
+          <label>Ne pas remplir <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+        </div>
+        <div class="inquiry-form__heading">
+          <p class="eyebrow">Message au BDE</p>
+          <h2>Comment peut-on t’aider ?</h2>
+        </div>
+        <div class="inquiry-fields">
+          <label class="form-field">Ton nom
+            <input name="name" autocomplete="name" required maxlength="80" value="{{ inquiry_values.get('name', '') }}" placeholder="Prénom Nom">
+          </label>
+          <label class="form-field">Ton e-mail
+            <input name="email" type="email" autocomplete="email" required maxlength="254" value="{{ inquiry_values.get('email', '') }}" placeholder="prenom@exemple.fr">
+          </label>
+          <label class="form-field form-field--wide">Objet
+            <input name="subject" required maxlength="120" value="{{ inquiry_values.get('subject', '') }}" placeholder="Le sujet de ton message">
+          </label>
+          <label class="form-field form-field--wide">Ton message
+            <textarea name="message" required maxlength="4000" rows="8" placeholder="Écris ton message ici…">{{ inquiry_values.get('message', '') }}</textarea>
+          </label>
+        </div>
+        <button class="button button-primary" type="submit">Envoyer le message <span aria-hidden="true">→</span></button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

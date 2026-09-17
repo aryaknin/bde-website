@@ -4,15 +4,61 @@
   <section class="page-hero">
     <div class="container">
       <p class="eyebrow">Des idées à partager</p>
-      <h1>Un projet <em>étudiant ?</em></h1>
-      <p>Fais-nous découvrir ton idée pour le campus.</p>
+      <h1>Propose ton <em>projet</em></h1>
+      <p>Une idée d’événement, d’atelier ou d’initiative pour faire vivre le campus ? Le BDE veut la découvrir.</p>
     </div>
   </section>
-  <section class="section">
-    <div class="container prose">
-      <h2>Parlons de ton projet</h2>
-      <p>Le formulaire de demande sera disponible prochainement.</p>
-      <a class="button button-outline" href="mailto:{{ site.contact_email }}">Contacter le BDE →</a>
+  <section class="section inquiry-section">
+    <div class="container inquiry-layout">
+      <aside class="inquiry-intro">
+        <p class="eyebrow">À toi de jouer</p>
+        <h2>Fais avancer ton idée.</h2>
+        <p>Explique-nous simplement ce que tu imagines. Nous te répondrons à l’adresse indiquée pour en discuter avec toi.</p>
+        <ul class="inquiry-steps" aria-label="Étapes de la proposition">
+          <li><span>01</span> Décris ton idée</li>
+          <li><span>02</span> Le BDE la découvre</li>
+          <li><span>03</span> On te recontacte</li>
+        </ul>
+      </aside>
+      <form class="inquiry-form" method="post" novalidate>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-honeypot" aria-hidden="true">
+          <label>Ne pas remplir <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+        </div>
+        <div class="inquiry-form__heading">
+          <p class="eyebrow">Proposition de projet</p>
+          <h2>Parlons-en</h2>
+        </div>
+        <div class="inquiry-fields">
+          <label class="form-field">Ton nom
+            <input name="name" autocomplete="name" required maxlength="80" value="{{ inquiry_values.get('name', '') }}" placeholder="Prénom Nom">
+          </label>
+          <label class="form-field">Ton e-mail
+            <input name="email" type="email" autocomplete="email" required maxlength="254" value="{{ inquiry_values.get('email', '') }}" placeholder="prenom@exemple.fr">
+          </label>
+          <label class="form-field form-field--wide">Nom du projet
+            <input name="subject" required maxlength="120" value="{{ inquiry_values.get('subject', '') }}" placeholder="Ex. Une soirée jeux inter-promotions">
+          </label>
+          <label class="form-field">Type de projet
+            <select name="project_type">
+              <option value="">Choisir (facultatif)</option>
+              {% for option in ('Événement', 'Atelier', 'Action solidaire', 'Sport', 'Culture', 'Autre') %}
+                <option value="{{ option }}" {% if inquiry_values.get('project_type') == option %}selected{% endif %}>{{ option }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="form-field">Classe / groupe
+            <input name="class_group" maxlength="80" value="{{ inquiry_values.get('class_group', '') }}" placeholder="Ex. BTS SIO 1">
+          </label>
+          <label class="form-field form-field--wide">Décris ton idée
+            <textarea name="message" required maxlength="4000" rows="7" placeholder="Quel est le but du projet, pour qui et comment imagines-tu le réaliser ?">{{ inquiry_values.get('message', '') }}</textarea>
+          </label>
+          <label class="form-field form-field--wide">Tes disponibilités
+            <textarea name="availability" maxlength="500" rows="3" placeholder="Facultatif — quand peut-on échanger avec toi ?">{{ inquiry_values.get('availability', '') }}</textarea>
+          </label>
+        </div>
+        <button class="button button-primary" type="submit">Envoyer ma proposition <span aria-hidden="true">→</span></button>
+      </form>
     </div>
   </section>
 {% endblock %}

@@ -3,8 +3,11 @@
 import os
 import re
 import secrets
+import smtplib
+import ssl
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from email.message import EmailMessage
 from functools import wraps
 from urllib.parse import quote_plus, urlencode, urlsplit
 from uuid import uuid4
@@ -49,6 +52,7 @@ PAGES = {
     "login": "Connexion",
     "register": "Créer un compte",
     "demande-domaine": "Projet étudiant",
+    "contact": "Contacter le BDE",
 }
 TEAM_ROLES = ("bde", "admin", "superadmin")
 CONTRIBUTION_STATUSES = {
@@ -86,6 +90,97 @@ def valid_email(value):
         value and len(value) <= 254
         and re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value)
     )
+
+
+def inquiry_values(form, kind):
+    """Valide les messages publics sans les conserver en base de données."""
+    values = {
+        "name": form.get("name", "").strip(),
+        "email": form.get("email", "").strip().lower(),
+        "subject": form.get("subject", "").strip(),
+        "message": form.get("message", "").strip(),
+        "class_group": form.get("class_group", "").strip(),
+        "project_type": form.get("project_type", "").strip(),
+        "availability": form.get("availability", "").strip(),
+    }
+    if form.get("website", "").strip():
+        return None, "Le message n’a pas pu être envoyé."
+    if not 2 <= len(values["name"]) <= 80 or "\n" in values["name"]:
+        return None, "Indique ton nom (entre 2 et 80 caractères)."
+    if not valid_email(values["email"]):
+        return None, "Saisis une adresse e-mail valide."
+    if not 10 <= len(values["message"]) <= 4000:
+        return None, "Ton message doit contenir entre 10 et 4 000 caractères."
+    if any("\n" in values[key] for key in ("subject", "class_group", "project_type")):
+        return None, "Un champ contient un format invalide."
+    if kind == "project":
+        if not 3 <= len(values["subject"]) <= 120:
+            return None, "Donne un nom à ton projet (entre 3 et 120 caractères)."
+        if len(values["class_group"]) > 80 or len(values["project_type"]) > 80:
+            return None, "Un des champs est trop long."
+        if len(values["availability"]) > 500:
+            return None, "Le champ de disponibilité est trop long."
+    elif not 3 <= len(values["subject"]) <= 120:
+        return None, "Indique l’objet de ton message (entre 3 et 120 caractères)."
+    return values, None
+
+
+def send_inquiry_email(kind, values):
+    """Envoie un formulaire via SMTP quand le VPS est configuré à cet effet."""
+    smtp_host = os.getenv("BDE_SMTP_HOST", "").strip()
+    if not smtp_host:
+        return False
+    recipient = os.getenv("BDE_CONTACT_RECIPIENT", "contact@bde-ortmontreuil.fr").strip()
+    sender = os.getenv("BDE_SMTP_FROM", "").strip() or recipient
+    username = os.getenv("BDE_SMTP_USERNAME", "").strip()
+    password = os.getenv("BDE_SMTP_PASSWORD", "")
+    try:
+        port = int(os.getenv("BDE_SMTP_PORT", "587"))
+    except ValueError:
+        port = 587
+
+    labels = {
+        "project": "Nouvelle proposition de projet",
+        "contact": "Nouveau message depuis le site",
+    }
+    lines = [
+        f"Nom : {values['name']}",
+        f"E-mail : {values['email']}",
+    ]
+    if kind == "project":
+        lines.extend([
+            f"Projet : {values['subject']}",
+            f"Type : {values['project_type'] or 'Non précisé'}",
+            f"Classe / groupe : {values['class_group'] or 'Non précisé'}",
+            f"Disponibilités : {values['availability'] or 'Non précisées'}",
+        ])
+    else:
+        lines.append(f"Objet : {values['subject']}")
+    lines.extend(["", "Message :", values["message"]])
+
+    message = EmailMessage()
+    message["Subject"] = f"[BDE ORT Sup] {labels[kind]}"
+    message["From"] = sender
+    message["To"] = recipient
+    message["Reply-To"] = values["email"]
+    message.set_content("\n".join(lines))
+
+    context = ssl.create_default_context()
+    if port == 465:
+        with smtplib.SMTP_SSL(smtp_host, port, timeout=12, context=context) as server:
+            if username:
+                server.login(username, password)
+            server.send_message(message)
+    else:
+        with smtplib.SMTP(smtp_host, port, timeout=12) as server:
+            server.ehlo()
+            if os.getenv("BDE_SMTP_STARTTLS", "1") != "0":
+                server.starttls(context=context)
+                server.ehlo()
+            if username:
+                server.login(username, password)
+            server.send_message(message)
+    return True
 
 
 def membership_configuration():
@@ -422,6 +517,41 @@ def create_app():
     @app.get("/")
     def home():
         return show_page("index")
+
+    def inquiry_page(kind):
+        page = "demande-domaine" if kind == "project" else "contact"
+        values = {}
+        if request.method == "POST":
+            values, error = inquiry_values(request.form, kind)
+            if error:
+                flash(error, "error")
+                values = values or {}
+            else:
+                try:
+                    delivered = send_inquiry_email(kind, values)
+                except (OSError, smtplib.SMTPException):
+                    app.logger.exception("Échec de l’envoi du formulaire %s", kind)
+                    delivered = False
+                if delivered:
+                    flash("Merci, ton message a bien été envoyé au BDE.", "success")
+                    return redirect(url_for("project_request" if kind == "project" else "contact"))
+                flash(
+                    "Le service d’envoi n’est pas encore disponible. "
+                    "Tu peux écrire à contact@bde-ortmontreuil.fr.",
+                    "error",
+                )
+        title = "Proposer un projet" if kind == "project" else "Contacter le BDE"
+        return render_template(
+            f"{page}.html", page=page, title=title, inquiry_values=values
+        )
+
+    @app.route("/demande-domaine.html", methods=("GET", "POST"))
+    def project_request():
+        return inquiry_page("project")
+
+    @app.route("/contact.html", methods=("GET", "POST"))
+    def contact():
+        return inquiry_page("contact")
 
     @app.route("/register.html", methods=("GET", "POST"))
     def register():

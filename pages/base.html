@@ -12,6 +12,7 @@
   </head>
   <body class="{{ 'is-home' if page == 'index' else '' }}">
     <a class="skip-link" href="#contenu">Aller au contenu</a>
+    <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div>
     {% include "partials/header.html" %}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}

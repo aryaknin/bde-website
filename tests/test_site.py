@@ -120,7 +120,7 @@ class SiteTests(unittest.TestCase):
 
     def test_home_counts_follow_visible_bde_profiles(self):
         self.assertEqual(self.client.get("/api/home-stats").json, {
-            "poles_count": 1, "members_count": 2, "years_count": 105,
+            "poles_count": 10, "members_count": 2, "years_count": 105,
         })
         self.assertEqual(len(database.bde_profiles()), 2)
         with database.get_db() as db:
@@ -221,6 +221,56 @@ class SiteTests(unittest.TestCase):
         self.assertIn('title="Calendrier officiel du BDE ORT Sup"', html)
         self.assertIn("calendar.google.com/calendar/embed", html)
         self.assertIn("wkst=2", html)
+
+    def test_project_and_contact_forms_send_validated_messages(self):
+        events_html = self.client.get("/evenements.html").get_data(as_text=True)
+        self.assertIn('href="/demande-domaine.html"', events_html)
+        self.assertIn('href="/contact.html"', events_html)
+
+        project_page = self.client.get("/demande-domaine.html").get_data(as_text=True)
+        self.assertIn("Propose ton", project_page)
+        token = self.csrf_token(self.client, "/demande-domaine.html")
+        with patch.object(app_module, "send_inquiry_email", return_value=True) as sender:
+            response = self.client.post("/demande-domaine.html", data={
+                "_csrf_token": token,
+                "name": "Camille Martin",
+                "email": "camille@example.com",
+                "subject": "Atelier photographie",
+                "project_type": "Atelier",
+                "class_group": "BTS SIO 1",
+                "message": "Un atelier pour apprendre les bases de la photographie.",
+                "availability": "Le jeudi après-midi.",
+                "website": "",
+            })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/demande-domaine.html"))
+        self.assertEqual(sender.call_args.args[0], "project")
+        self.assertEqual(sender.call_args.args[1]["subject"], "Atelier photographie")
+
+        token = self.csrf_token(self.client, "/contact.html")
+        with patch.object(app_module, "send_inquiry_email", return_value=True) as sender:
+            response = self.client.post("/contact.html", data={
+                "_csrf_token": token,
+                "name": "Alex Dupont",
+                "email": "alex@example.com",
+                "subject": "Question sur la cotisation",
+                "message": "Bonjour, je souhaite obtenir un renseignement sur la cotisation.",
+                "website": "",
+            })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(sender.call_args.args[0], "contact")
+
+    def test_project_form_rejects_invalid_and_spam_submissions(self):
+        token = self.csrf_token(self.client, "/demande-domaine.html")
+        response = self.client.post("/demande-domaine.html", data={
+            "_csrf_token": token,
+            "name": "A",
+            "email": "adresse-invalide",
+            "subject": "Idée",
+            "message": "Court",
+            "website": "robot.example",
+        })
+        self.assertIn("n’a pas pu être envoyé", response.get_data(as_text=True))
 
     def test_login_and_protected_account(self):
         credentials = database.user_credentials("supertest")

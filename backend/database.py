@@ -20,7 +20,7 @@ DEFAULT_SETTINGS = {
     "membership_fee_cents": "500",
     "helloasso_membership_url": "",
     "institution_since": "1921",
-    "poles_count": "1",
+    "poles_count": "10",
     "years_count": "105",
 }
 
@@ -197,26 +197,37 @@ def initialise_database():
 def migrate_home_settings(db):
     """Applique une seule fois les chiffres ORT et le tarif validés le 16/09/2026."""
     migration = "2026-09-16-home-statistics-and-membership-fee"
-    if db.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (migration,)).fetchone():
-        return
-    db.executemany("""
-        INSERT INTO site_settings (key, value) VALUES (?, ?)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    """, (
-        ("poles_count", "1"), ("institution_since", "1921"),
-        ("years_count", "105"), ("membership_fee_cents", "500"),
-    ))
-    db.execute("DELETE FROM site_settings WHERE key = 'members_count'")
-    # Corrige uniquement les anciennes échéances standard non réglées de cette rentrée.
-    db.execute("""
-        UPDATE contributions SET amount_cents = 500, updated_at = CURRENT_TIMESTAMP
-        WHERE school_year = '2026-2027' AND status = 'due' AND amount_cents = 1500
-    """)
-    db.execute("""
-        UPDATE products SET price_cents = 500
-        WHERE name = 'Adhésion BDE 2026–2027'
-    """)
-    db.execute("INSERT INTO schema_migrations (name) VALUES (?)", (migration,))
+    if not db.execute(
+        "SELECT 1 FROM schema_migrations WHERE name = ?", (migration,)
+    ).fetchone():
+        db.executemany("""
+            INSERT INTO site_settings (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """, (
+            ("poles_count", "1"), ("institution_since", "1921"),
+            ("years_count", "105"), ("membership_fee_cents", "500"),
+        ))
+        db.execute("DELETE FROM site_settings WHERE key = 'members_count'")
+        # Corrige uniquement les anciennes échéances standard non réglées de cette rentrée.
+        db.execute("""
+            UPDATE contributions SET amount_cents = 500, updated_at = CURRENT_TIMESTAMP
+            WHERE school_year = '2026-2027' AND status = 'due' AND amount_cents = 1500
+        """)
+        db.execute("""
+            UPDATE products SET price_cents = 500
+            WHERE name = 'Adhésion BDE 2026–2027'
+        """)
+        db.execute("INSERT INTO schema_migrations (name) VALUES (?)", (migration,))
+
+    # Chiffre ORT France validé après la première version des statistiques.
+    poles_migration = "2026-09-17-ort-france-10-poles"
+    if not db.execute(
+        "SELECT 1 FROM schema_migrations WHERE name = ?", (poles_migration,)
+    ).fetchone():
+        db.execute(
+            "UPDATE site_settings SET value = '10' WHERE key = 'poles_count'"
+        )
+        db.execute("INSERT INTO schema_migrations (name) VALUES (?)", (poles_migration,))
 
 
 def query(sql, parameters=(), booleans=()):

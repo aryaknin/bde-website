@@ -1,12 +1,18 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <section class="section">
-    <div class="container prose">
-      <p class="eyebrow">Erreur 404</p>
-      <h1>Page introuvable</h1>
-      <p>Cette page n’existe pas ou a été déplacée.</p>
-      <a class="button button-outline" href="{{ url_for('home') }}">Retour à l’accueil →</a>
+  <section class="not-found" aria-labelledby="not-found-title">
+    <div class="not-found__pattern" aria-hidden="true"></div>
+    <div class="container not-found__content">
+      <p class="eyebrow">Erreur de navigation</p>
+      <p class="not-found__code" aria-hidden="true">404</p>
+      <h1 id="not-found-title">Cette page a<br><em>pris la mauvaise sortie.</em></h1>
+      <p>Elle n’existe pas, a été déplacée ou le lien n’est plus à jour. Reviens vers les rendez-vous du BDE.</p>
+      <div class="not-found__actions">
+        <a class="button button-light" href="{{ url_for('home') }}">Retour à l’accueil →</a>
+        <a class="button button-outline-light" href="{{ url_for('public_page', page='evenements') }}">Voir les événements</a>
+      </div>
+      <a class="not-found__calendar" href="{{ url_for('public_page', page='calendrier') }}">Ou consulter le calendrier du BDE <span aria-hidden="true">↗</span></a>
     </div>
   </section>
 {% endblock %}

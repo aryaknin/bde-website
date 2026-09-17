@@ -22,12 +22,16 @@
 .shop-notice { padding: 1.2rem 1.5rem; border: 1px solid #d5e5ef; border-left: 3px solid var(--blue); border-radius: .8rem; background: #f0f7fb; color: #35556b; font-size: .95rem; margin-block: 1.5rem; line-height: 1.6; }
 .shop-notice p { margin: .5rem 0 0; }
 .product-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.7rem; margin-top: 2.5rem; }
-.product-card { min-width: 0; border: 1px solid #e1e8ee; background: white; border-radius: 1.4rem; overflow: hidden; display: flex; flex-direction: column; transition: box-shadow .2s, transform .2s; }
+.product-card { position: relative; isolation: isolate; min-width: 0; border: 1px solid #e1e8ee; background: white; border-radius: 1.4rem; overflow: hidden; display: flex; flex-direction: column; transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease; }
+.product-card::after { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: radial-gradient(circle at 75% 0%, rgb(18 185 229 / .16), transparent 38%); content: ""; opacity: 0; transition: opacity .25s ease; }
 @media (prefers-reduced-motion: no-preference) {
-  .product-card:hover { transform: translateY(-4px); box-shadow: 0 16px 45px #10365813; }
+  .product-card:hover { border-color: #9bcce3; transform: translateY(-6px); box-shadow: 0 20px 48px #10365820; }
+  .product-card:hover::after { opacity: 1; }
+  .product-card:hover .product-card__visual > img { transform: scale(1.045); }
 }
 .product-card__visual { position: relative; display: block; aspect-ratio: 1.2; background: #eaf2f8; overflow: hidden; }
 .product-card__visual > img, .product-detail__visual > img, .cart-line__image > img, .editor-photo > img { width: 100%; height: 100%; object-fit: contain; }
+.product-card__visual > img { transition: transform .45s cubic-bezier(.2, .75, .25, 1), opacity .25s ease; }
 .product-placeholder { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .75rem; background: radial-gradient(ellipse at 70% 20%, #fff 0, #e5f2f9 55%, #ccdfed 100%); color: var(--blue-deep); }
 .product-placeholder img { width: 30%; max-width: 120px; height: auto; }
 .product-placeholder span { font-weight: 750; letter-spacing: -.02em; font-size: 1.2rem; }

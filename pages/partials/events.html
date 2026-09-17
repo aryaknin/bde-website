@@ -1,4 +1,4 @@
-<div class="card-grid">
+<div class="{{ 'event-timeline' if event_details else 'card-grid' }}">
   {% for event in events %}
     {% if event_details %}
       <article class="card event-card event-card--interactive">
