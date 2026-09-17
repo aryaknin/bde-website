@@ -33,18 +33,6 @@
   scroll-behavior: smooth;
 }
 
-@view-transition {
-  navigation: auto;
-}
-
-::view-transition-old(root) {
-  animation: page-fade-out .17s ease both;
-}
-
-::view-transition-new(root) {
-  animation: page-fade-in .38s ease both;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -143,24 +131,9 @@ main > section:nth-child(3) {
   animation-delay: .1s;
 }
 
-body.page-leaving main,
-body.page-leaving .site-footer {
-  opacity: 0;
-  transform: translateY(8px);
-  transition: opacity .17s ease, transform .17s ease;
-}
-
 @keyframes element-enter {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes page-fade-out {
-  to { opacity: 0; transform: scale(.995); }
-}
-
-@keyframes page-fade-in {
-  from { opacity: 0; transform: translateY(10px); }
 }
 
 .is-home main {
@@ -282,6 +255,9 @@ body.page-leaving .site-footer {
   /* Ne pas conserver le transform final : il neutraliserait le masquage au scroll. */
   animation: navigation-enter .42s cubic-bezier(.2, .75, .25, 1) backwards;
   transition: transform .3s ease, background-color .3s ease, box-shadow .3s ease;
+  pointer-events: auto;
+  isolation: isolate;
+  will-change: transform;
 }
 
 @keyframes navigation-enter {
@@ -295,6 +271,7 @@ body.page-leaving .site-footer {
 
 .site-header.is-hidden {
   transform: translateY(-105%);
+  pointer-events: none;
 }
 
 .site-header.menu-open {
@@ -2229,8 +2206,4 @@ body.page-leaving .site-footer {
     transition: none !important;
   }
 
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation: none !important;
-  }
 }

@@ -50,6 +50,13 @@
       header.classList.remove("is-hidden");
       updateNavigation();
     });
+    window.addEventListener("pagehide", closeMenu);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        previousY = window.scrollY;
+        header.classList.remove("is-hidden");
+      }
+    });
   }
 
   const welcome = document.querySelector("[data-welcome]");
@@ -228,22 +235,4 @@
     activateAdminTab(availableTabs.includes(requestedTab) ? requestedTab : "accounts");
   }
 
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!reducedMotion) {
-    window.addEventListener("pageshow", () => document.body.classList.remove("page-leaving"));
-    document.addEventListener("click", (event) => {
-      const link = event.target.closest("a[href]");
-      if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey
-          || event.ctrlKey || event.shiftKey || event.altKey || link.target || link.hasAttribute("download")) {
-        return;
-      }
-      const destination = new URL(link.href, window.location.href);
-      const sameDocument = destination.pathname === window.location.pathname
-        && destination.search === window.location.search;
-      if (destination.origin !== window.location.origin || sameDocument) return;
-      event.preventDefault();
-      document.body.classList.add("page-leaving");
-      window.setTimeout(() => { window.location.href = destination.href; }, 170);
-    });
-  }
 })();
