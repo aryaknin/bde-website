@@ -392,6 +392,31 @@
     });
   });
 
+  const scanner = document.querySelector("[data-attendance-scanner]");
+  if (scanner) {
+    const video = scanner.querySelector("[data-scanner-video]");
+    const status = scanner.querySelector("[data-scanner-status]");
+    let stream; let timer;
+    const submit = async (token) => {
+      if (!token) return;
+      const data = new URLSearchParams({token, _csrf_token: scanner.dataset.csrf});
+      const response = await fetch(scanner.dataset.scanUrl, {method: "POST", body: data, credentials: "same-origin"});
+      const result = await response.json(); status.textContent = result.message;
+      status.classList.toggle("is-error", !response.ok); status.classList.toggle("is-success", response.ok);
+    };
+    const scan = async () => {
+      if (!stream || !window.BarcodeDetector) return;
+      try { const codes = await new BarcodeDetector({formats:["qr_code"]}).detect(video); if (codes[0]) { await submit(codes[0].rawValue); } } catch (_) {}
+      timer = setTimeout(scan, 700);
+    };
+    scanner.querySelector("[data-scanner-start]").addEventListener("click", async () => {
+      if (!window.BarcodeDetector) { status.textContent = "Ce navigateur ne prend pas en charge le scan QR. Utilise Chrome récent ou la saisie manuelle."; status.classList.add("is-error"); return; }
+      try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false}); video.srcObject=stream; await video.play(); status.textContent="Caméra active : vise le QR code."; scan(); } catch (_) { status.textContent="Autorise l’accès à la caméra puis réessaie."; status.classList.add("is-error"); }
+    });
+    scanner.querySelector("[data-scanner-stop]").addEventListener("click", () => { clearTimeout(timer); stream?.getTracks().forEach(track=>track.stop()); stream=null; video.srcObject=null; status.textContent="Caméra arrêtée."; });
+    scanner.querySelector("[data-scanner-manual]").addEventListener("submit", event => { event.preventDefault(); submit(new FormData(event.currentTarget).get("token")); });
+  }
+
   const teamFilter = document.querySelector("[data-team-filter]");
   const teamCards = [...document.querySelectorAll("[data-team-card]")];
   const teamCount = document.querySelector("[data-team-count]");

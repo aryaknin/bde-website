@@ -19,6 +19,7 @@
           <button class="button button-primary" type="button" data-admin-event-open aria-controls="ajouter-evenement">
             Ajouter un événement
           </button>
+          <a class="button button-secondary" href="{{ url_for('attendance_scanner') }}">Scanner les présences</a>
         </div>
       {% endif %}
       {% include "partials/events.html" %}

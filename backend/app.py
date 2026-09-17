@@ -6,6 +6,8 @@ import secrets
 from hashlib import sha256
 import smtplib
 import ssl
+import csv
+from io import BytesIO, StringIO
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from email.message import EmailMessage
@@ -27,9 +29,11 @@ from flask import (
     render_template,
     request,
     session,
+    send_file,
     url_for,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 if __package__:
     from . import database, shop, shop_store
@@ -221,6 +225,27 @@ def send_password_reset_email(recipient, username, reset_url):
                 server.ehlo()
             if username_smtp:
                 server.login(username_smtp, password)
+            server.send_message(message)
+    return True
+
+
+def send_event_registration_email(recipient, event):
+    """Confirmation simple d'inscription, envoyée uniquement si la boîte est configurée."""
+    host = os.getenv("BDE_SMTP_HOST", "").strip()
+    if not host:
+        return False
+    message = EmailMessage(); message["Subject"] = f"[BDE ORT Sup] Inscription confirmée — {event['title']}"
+    message["From"] = os.getenv("BDE_SMTP_FROM", "").strip() or recipient; message["To"] = recipient
+    message.set_content(f"Ton inscription à « {event['title']} » est confirmée.\n\n{format_date(event['starts_at'])}\n{event['location']}\n\nPrésente ton QR code depuis la page Événements le jour J.")
+    port = int(os.getenv("BDE_SMTP_PORT", "587")); user = os.getenv("BDE_SMTP_USERNAME", "").strip(); password = os.getenv("BDE_SMTP_PASSWORD", "")
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, timeout=12, context=ssl.create_default_context()) as server:
+            if user: server.login(user, password)
+            server.send_message(message)
+    else:
+        with smtplib.SMTP(host, port, timeout=12) as server:
+            server.starttls(context=ssl.create_default_context())
+            if user: server.login(user, password)
             server.send_message(message)
     return True
 
@@ -532,6 +557,10 @@ def create_app():
                 items = [item for item in items if parse_date(item["ends_at"] or item["starts_at"]) >= now][:3]
             context["events"] = items
             context["event_details"] = page == "evenements"
+            if page == "evenements" and g.user:
+                context["registrations"] = {item["event_id"]: item for item in database.event_registrations_for_user(g.user["id"])}
+            if page == "evenements" and g.user and g.user["role"] in TEAM_ROLES:
+                context["event_participants"] = {item["id"]: database.event_registrations_for_event(item["id"]) for item in items}
         elif page == "billetterie":
             context["products"] = shop_store.catalogue()
         elif page == "bde":
@@ -858,6 +887,68 @@ def create_app():
         event_id = database.create_event(data)
         flash("L’événement a été ajouté au site.", "success")
         return redirect(url_for("account", event_created=event_id))
+
+    def event_tokens():
+        return URLSafeTimedSerializer(app.secret_key, salt="bde-event-presence-v1")
+
+    @app.post("/evenements/<int:event_id>/inscription")
+    @login_required
+    def register_event(event_id):
+        try:
+            created = database.register_for_event(event_id, g.user["id"])
+            if created and g.user.get("email"):
+                try: send_event_registration_email(g.user["email"], database.event_by_id(event_id))
+                except (OSError, smtplib.SMTPException): app.logger.exception("Échec de l’e-mail de confirmation d’inscription")
+            flash("Inscription confirmée." if created else "Tu es déjà inscrit à cet événement.", "success")
+        except ValueError as error:
+            flash(str(error), "error")
+        return redirect(url_for("public_page", page="evenements") + f"#event-{event_id}")
+
+    @app.post("/evenements/<int:event_id>/annuler-inscription")
+    @login_required
+    def cancel_event(event_id):
+        if database.cancel_event_registration(event_id, g.user["id"]):
+            flash("Ton inscription a été annulée.", "success")
+        return redirect(url_for("public_page", page="evenements") + f"#event-{event_id}")
+
+    @app.get("/evenements/<int:event_id>/participants.csv")
+    @team_member_required
+    def event_participants_csv(event_id):
+        output = StringIO(); writer = csv.writer(output); writer.writerow(("Nom", "E-mail", "Inscrit le", "Présent le"))
+        for item in database.event_registrations_for_event(event_id): writer.writerow((item["username"], item["email"] or "", item["created_at"], item["checked_in_at"] or ""))
+        return app.response_class(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": f"attachment; filename=participants-evenement-{event_id}.csv"})
+
+    @app.get("/evenements/<int:event_id>/qr.png")
+    @login_required
+    def event_qr(event_id):
+        registration = next((r for r in database.event_registrations_for_user(g.user["id"]) if r["event_id"] == event_id), None)
+        if not registration: abort(404)
+        import qrcode
+        token = event_tokens().dumps({"event_id": event_id, "user_id": g.user["id"]})
+        image = qrcode.make(token); output = BytesIO(); image.save(output, "PNG"); output.seek(0)
+        return send_file(output, mimetype="image/png", max_age=0)
+
+    @app.get("/bde/presences.html")
+    @team_member_required
+    def attendance_scanner():
+        return render_template("attendance-scanner.html", page="account", title="Scanner les présences")
+
+    @app.post("/bde/presences/scan")
+    @team_member_required
+    def scan_attendance():
+        token = request.form.get("token", "")
+        try:
+            payload = event_tokens().loads(token, max_age=7 * 24 * 60 * 60)
+            event_id, user_id = int(payload["event_id"]), int(payload["user_id"])
+        except (BadSignature, KeyError, TypeError, ValueError):
+            return jsonify(ok=False, message="QR code invalide ou expiré."), 400
+        state = database.check_in_event_registration(event_id, user_id)
+        participant = database.user_by_id(user_id)
+        event = database.event_by_id(event_id)
+        if not state or not participant or not event:
+            return jsonify(ok=False, message="Cette inscription n’est pas valide."), 404
+        message = f"{participant['username']} est déjà marqué présent." if state == "already" else f"Présence confirmée : {participant['username']} — {event['title']}."
+        return jsonify(ok=True, already=state == "already", message=message)
 
     @app.post("/compte/profil")
     @team_member_required

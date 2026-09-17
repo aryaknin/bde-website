@@ -109,6 +109,16 @@ def initialise_database():
             );
             CREATE INDEX IF NOT EXISTS password_reset_tokens_lookup
                 ON password_reset_tokens(token_hash, expires_at);
+            CREATE TABLE IF NOT EXISTS event_registrations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status TEXT NOT NULL DEFAULT 'registered' CHECK(status IN ('registered','cancelled')),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                checked_in_at TEXT,
+                UNIQUE(event_id, user_id)
+            );
+            CREATE INDEX IF NOT EXISTS event_registrations_event ON event_registrations(event_id,status);
         """)
         user_table = db.execute(
             "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
@@ -270,6 +280,7 @@ def events():
         SELECT events.id, events.association_id, events.title, events.description,
                events.starts_at, events.ends_at, events.location, events.image_url,
                events.google_calendar_url, events.price_cents, events.capacity, events.published,
+               (SELECT COUNT(*) FROM event_registrations r WHERE r.event_id=events.id AND r.status='registered') AS registrations_count,
                COALESCE(
                    NULLIF(events.organizer_name, ''),
                    (SELECT value FROM site_settings WHERE key = 'site_name'),
@@ -278,6 +289,49 @@ def events():
         FROM events
         WHERE events.published = 1 ORDER BY julianday(events.starts_at) ASC
     """, booleans=("published",))
+
+
+def register_for_event(event_id, user_id):
+    with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
+        event = db.execute("SELECT capacity,published FROM events WHERE id=?", (event_id,)).fetchone()
+        if not event or not event["published"]:
+            raise ValueError("Cet événement n’est plus disponible.")
+        existing = db.execute("SELECT status FROM event_registrations WHERE event_id=? AND user_id=?", (event_id,user_id)).fetchone()
+        if existing and existing["status"] == "registered":
+            return False
+        count = db.execute("SELECT COUNT(*) FROM event_registrations WHERE event_id=? AND status='registered'", (event_id,)).fetchone()[0]
+        if event["capacity"] is not None and count >= event["capacity"]:
+            raise ValueError("Cet événement est complet.")
+        db.execute("""INSERT INTO event_registrations(event_id,user_id,status,checked_in_at) VALUES (?,?,'registered',NULL)
+            ON CONFLICT(event_id,user_id) DO UPDATE SET status='registered',checked_in_at=NULL,created_at=CURRENT_TIMESTAMP""", (event_id,user_id))
+        return True
+
+
+def cancel_event_registration(event_id, user_id):
+    with get_db() as db:
+        return db.execute("UPDATE event_registrations SET status='cancelled' WHERE event_id=? AND user_id=? AND status='registered'", (event_id,user_id)).rowcount == 1
+
+
+def event_registrations_for_user(user_id):
+    return query("""SELECT r.*,events.title,events.starts_at,events.location FROM event_registrations r JOIN events ON events.id=r.event_id
+        WHERE r.user_id=? AND r.status='registered' ORDER BY events.starts_at""", (user_id,))
+
+
+def event_registrations_for_event(event_id):
+    return query("""SELECT r.*,users.username,users.email FROM event_registrations r JOIN users ON users.id=r.user_id
+        WHERE r.event_id=? AND r.status='registered' ORDER BY r.created_at""", (event_id,))
+
+
+def check_in_event_registration(event_id, user_id):
+    with get_db() as db:
+        row = db.execute("SELECT checked_in_at FROM event_registrations WHERE event_id=? AND user_id=? AND status='registered'", (event_id,user_id)).fetchone()
+        if not row:
+            return None
+        if row["checked_in_at"]:
+            return "already"
+        db.execute("UPDATE event_registrations SET checked_in_at=CURRENT_TIMESTAMP WHERE event_id=? AND user_id=?", (event_id,user_id))
+        return "checked_in"
 
 
 def event_by_id(event_id):

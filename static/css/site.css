@@ -1805,6 +1805,15 @@ main > section:nth-child(3) {
   color: white;
 }
 
+.scanner-section { background:#f6fafe; }
+.scanner-layout { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(18rem,.7fr); gap:2rem; align-items:start; }
+.scanner-video { width:100%; min-height:22rem; border-radius:1.2rem; background:#061827; object-fit:cover; }
+.scanner-controls { display:grid; gap:1rem; padding:1.5rem; border:1px solid var(--line); border-radius:1.2rem; background:white; }
+.scanner-controls form { display:grid; gap:.7rem; }
+.scanner-controls input { width:100%; padding:.8rem; border:1px solid #b8ccd8; border-radius:.7rem; }
+.scanner-status { margin:.8rem 0 0; font-weight:650; }
+.scanner-status.is-success { color:#16824b; }.scanner-status.is-error { color:#bd3045; }
+
 .security-card {
   scroll-margin-top: calc(var(--header-height) + 1rem);
 }

@@ -47,6 +47,8 @@ def initialise_shop():
                 total_cents INTEGER NOT NULL CHECK(total_cents >= 0),
                 currency TEXT NOT NULL DEFAULT 'EUR',
                 payment_provider TEXT,
+                payment_method TEXT NOT NULL DEFAULT 'online'
+                    CHECK(payment_method IN ('online','cash')),
                 payment_reference TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 expires_at TEXT NOT NULL,
@@ -65,6 +67,9 @@ def initialise_shop():
             CREATE INDEX IF NOT EXISTS shop_orders_user ON shop_orders(user_id, created_at);
             CREATE INDEX IF NOT EXISTS shop_orders_reservations ON shop_orders(status, expires_at);
         """)
+        order_columns = {row["name"] for row in db.execute("PRAGMA table_info(shop_orders)")}
+        if "payment_method" not in order_columns:
+            db.execute("ALTER TABLE shop_orders ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'online'")
 
 
 INVENTORY_SQL = """
@@ -244,7 +249,9 @@ def expire_orders(db):
         WHERE status='awaiting_payment' AND expires_at <= CURRENT_TIMESTAMP""")
 
 
-def prepare_order(user_id, cart_id, quote, checkout_key):
+def prepare_order(user_id, cart_id, quote, checkout_key, payment_method="online"):
+    if payment_method not in ("online", "cash"):
+        raise ValueError("Choisis un moyen de paiement valide.")
     with database.get_db() as db:
         db.execute("BEGIN IMMEDIATE")
         expire_orders(db)
@@ -262,8 +269,9 @@ def prepare_order(user_id, cart_id, quote, checkout_key):
         if db.execute("SELECT COUNT(*) FROM shop_orders WHERE user_id=? AND status='awaiting_payment'", (user_id,)).fetchone()[0] >= 3:
             raise ValueError("Tu as déjà trois commandes en attente. Annule-en une avant de continuer.")
         order_id = secrets.token_hex(12)
-        db.execute("""INSERT INTO shop_orders(id,user_id,checkout_key,total_cents,expires_at)
-            VALUES (?,?,?,?,datetime('now','+30 minutes'))""", (order_id,user_id,checkout_key,cart["total"]))
+        expiry = "+7 days" if payment_method == "cash" else "+30 minutes"
+        db.execute("""INSERT INTO shop_orders(id,user_id,checkout_key,total_cents,payment_method,expires_at)
+            VALUES (?,?,?,?,?,datetime('now',?))""", (order_id,user_id,checkout_key,cart["total"],payment_method,expiry))
         db.executemany("""INSERT INTO shop_order_items(order_id,product_id,name,quantity,unit_price_cents)
             VALUES (?,?,?,?,?)""", [(order_id,i["id"],i["name"],i["quantity"],i["price_cents"]) for i in cart["items"]])
         db.execute("DELETE FROM shop_cart_items WHERE cart_id=?", (cart_id,))
@@ -297,10 +305,18 @@ def cancel_order(order_id, user_id):
 
 
 def fulfil_order(order_id, status):
-    previous = {"ready": "paid", "collected": "ready"}.get(status)
-    if not previous:
+    if status not in ("paid", "ready", "collected"):
         return False
     with database.get_db() as db:
+        row = db.execute("SELECT status,payment_method FROM shop_orders WHERE id=?", (order_id,)).fetchone()
+        if not row:
+            return False
+        if status == "paid":
+            if row["status"] != "awaiting_payment" or row["payment_method"] != "cash":
+                return False
+            return db.execute("""UPDATE shop_orders SET status='paid',payment_provider='cash',paid_at=CURRENT_TIMESTAMP,
+                updated_at=CURRENT_TIMESTAMP WHERE id=?""", (order_id,)).rowcount == 1
+        previous = {"ready": "paid", "collected": "ready"}[status]
         return db.execute("UPDATE shop_orders SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status=?",
                           (status,order_id,previous)).rowcount == 1
 

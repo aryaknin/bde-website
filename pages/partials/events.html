@@ -1,7 +1,7 @@
 <div class="{{ 'event-timeline' if event_details else 'card-grid' }}">
   {% for event in events %}
     {% if event_details %}
-      <article class="card event-card event-card--interactive">
+      <article class="card event-card event-card--interactive" id="event-{{ event.id }}">
         <button
           class="event-card__trigger"
           type="button"
@@ -72,7 +72,7 @@
         {% if event.capacity %}
           <div>
             <dt>Capacité</dt>
-            <dd>{{ event.capacity }} places</dd>
+            <dd>{{ event.registrations_count }} / {{ event.capacity }} places</dd>
           </div>
         {% endif %}
       </dl>
@@ -81,6 +81,19 @@
           Voir dans le calendrier
           <span aria-hidden="true">→</span>
         </a>
+        {% if current_user %}
+          {% if registrations and event.id in registrations %}
+            <form method="post" action="{{ url_for('cancel_event', event_id=event.id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="button button-secondary" type="submit">Annuler mon inscription</button></form>
+            <a class="button button-outline" href="{{ url_for('event_qr', event_id=event.id) }}" target="_blank">Mon QR de présence</a>
+          {% else %}
+            <form method="post" action="{{ url_for('register_event', event_id=event.id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="button button-primary" type="submit" {% if event.capacity and event.registrations_count >= event.capacity %}disabled{% endif %}>Je participe</button></form>
+          {% endif %}
+        {% else %}
+          <a class="button button-secondary" href="{{ url_for('login', next='events') }}">Se connecter pour participer</a>
+        {% endif %}
+        {% if current_user and current_user.role in ('bde','admin','superadmin') %}
+          <a class="text-link" href="{{ url_for('event_participants_csv', event_id=event.id) }}">Exporter les inscrits ({{ event_participants[event.id] | length }})</a>
+        {% endif %}
       </div>
     </dialog>
   {% endfor %}

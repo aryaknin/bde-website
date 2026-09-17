@@ -7,12 +7,16 @@
       <p class="eyebrow">Retrait gratuit au campus</p><h2>{{ current_user.username }}</h2>
       <p>{{ site.campus_address }}</p><p>Tu pourras retirer tes articles quand la commande sera payée et marquée « Prête à retirer » par le BDE.</p>
       <ul class="checkout-lines">{% for item in cart['items'] %}<li><span>{{ item.name }} × {{ item.quantity }}</span><strong>{{ item.subtotal | price }}</strong></li>{% endfor %}</ul>
-      <div class="shop-notice"><strong>Le paiement n’est pas encore activé.</strong><p>En continuant, tu crées une commande en attente, pas un achat confirmé. Les articles sont réservés pendant 30 minutes puis libérés automatiquement si aucun paiement n’est reçu. Aucun montant n’est débité.</p></div>
+      <div class="shop-notice"><strong>Choisis ton moyen de paiement.</strong><p>Le paiement en ligne sera proposé prochainement. En espèces, le BDE confirmera la commande après le règlement au campus.</p></div>
       <a class="text-link" href="{{ url_for('shop.cart') }}">← Modifier mon panier</a>
     </div>
     {% call summary(cart) %}
       <form method="post" action="{{ url_for('shop.checkout') }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="quote" value="{{ quote }}">
+        <fieldset class="payment-choice"><legend>Moyen de paiement</legend>
+          <label><input type="radio" name="payment_method" value="cash" required> <span><strong>Espèces au BDE</strong><small>Commande réservée 7 jours, puis validée après paiement physique.</small></span></label>
+          <label><input type="radio" name="payment_method" value="online"> <span><strong>Paiement en ligne</strong><small>Fonctionnalité bientôt disponible : la commande restera en attente.</small></span></label>
+        </fieldset>
         <button class="button button-primary" type="submit">Préparer la commande</button>
       </form>
       <p class="shop-muted">La commande restera en attente tant que le prestataire de paiement n’aura pas confirmé le règlement.</p>

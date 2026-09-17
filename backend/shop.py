@@ -112,7 +112,9 @@ def checkout():
             quote = signed_quotes().loads(request.form.get("quote", ""), max_age=1800)
             if quote["user"] != g.user["id"]:
                 raise ValueError("Ce récapitulatif ne correspond pas à ton compte.")
-            order_id = store.prepare_order(g.user["id"], identifier, quote["items"], quote["key"])
+            order_id = store.prepare_order(
+                g.user["id"], identifier, quote["items"], quote["key"], request.form.get("payment_method", "online")
+            )
             return redirect(url_for("shop.order_detail", order_id=order_id), code=303)
         except BadSignature:
             flash("Le récapitulatif a expiré ou est invalide. Vérifie à nouveau ton panier.", "error")
